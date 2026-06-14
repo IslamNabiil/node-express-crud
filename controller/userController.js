@@ -133,21 +133,3 @@ exports.updateUser = async (req, res) => {
     });
   }
 };
-
-// exports.searchUser = async (req, res) => {
-//   try {
-//     const { name } = req.query;
-//     const users = await User.find({
-//       name: { $regex: name, $options: "i" },
-//     });
-//     res.status(200).json({
-//       message: `We've catched ${users.length} users successfully ✔`,
-//       data: users,
-//     });
-//   } catch (error) {
-//     res.status(400).json({
-//       message: "Server Error ❌",
-//       error: error.message,
-//     });
-//   }
-// };

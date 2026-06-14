@@ -22,6 +22,8 @@ const speed = async (req, res) => {
         color: faker.color.human(),
         petName: faker.animal.petName(),
         gender: faker.person.gender(),
+        sexType: faker.person.sexType(),
+        sex: faker.person.sex(),
       });
     }
 
