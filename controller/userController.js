@@ -1,26 +1,5 @@
 const User = require("../model/userModel");
 
-// exports.getAllUsers = async (req, res) => {
-//   try {
-
-//     const page = parseInt(req.query.page) || 1;
-//     const limit = parseInt(req.query.limit) || 10;
-
-//     const skip = (page - 1) * limit;
-
-//     const users = await User.find().skip(skip).limit(limit);
-//     res.status(200).json({
-//       message: `We've catched ${users.length} users successfully ✔`,
-//       data: users,
-//     });
-//   } catch (error) {
-//     res.status(400).json({
-//       message: "Server Error ❌",
-//       error: error.message,
-//     });
-//   }
-// };
-
 exports.getAllUsers = async (req, res) => {
   try {
     const queryObj = { ...req.query };
@@ -146,20 +125,20 @@ exports.updateUser = async (req, res) => {
   }
 };
 
-exports.searchUser = async (req, res) => {
-  try {
-    const { name } = req.query;
-    const users = await User.find({
-      name: { $regex: name, $options: "i" },
-    });
-    res.status(200).json({
-      message: `We've catched ${users.length} users successfully ✔`,
-      data: users,
-    });
-  } catch (error) {
-    res.status(400).json({
-      message: "Server Error ❌",
-      error: error.message,
-    });
-  }
-};
+// exports.searchUser = async (req, res) => {
+//   try {
+//     const { name } = req.query;
+//     const users = await User.find({
+//       name: { $regex: name, $options: "i" },
+//     });
+//     res.status(200).json({
+//       message: `We've catched ${users.length} users successfully ✔`,
+//       data: users,
+//     });
+//   } catch (error) {
+//     res.status(400).json({
+//       message: "Server Error ❌",
+//       error: error.message,
+//     });
+//   }
+// };
