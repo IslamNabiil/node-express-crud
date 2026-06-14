@@ -17,11 +17,18 @@ exports.getAllUsers = async (req, res) => {
       }
     });
 
+    let query = User.find(queryObj);
+
+    if (req.query.fields) {
+      const fields = req.query.fields.split(",").join(" ");
+      query = query.select(fields);
+    } else {
+      query = query.select("-__v");
+    }
+
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
-
-    let query = User.find(queryObj);
 
     if (req.query.sort) {
       query = query.sort(req.query.sort);
