@@ -11,7 +11,7 @@ exports.getAllUsers = async (req, res) => {
       if (
         typeof queryObj[key] === "string" &&
         key !== "email" &&
-        key !== "gender"
+        key !== "sex"
       ) {
         queryObj[key] = { $regex: queryObj[key], $options: "i" };
       }
@@ -21,11 +21,20 @@ exports.getAllUsers = async (req, res) => {
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
 
+    let query = User.find(queryObj);
+
+    if (req.query.sort) {
+      query = query.sort(req.query.sort);
+    } else {
+      query = query.sort("_id");
+    }
+
     const totalUsers = await User.countDocuments(queryObj);
 
-    const users = await User.find(queryObj).skip(skip).limit(limit);
-
+    const users = await query.skip(skip).limit(limit);
+    // const users = await User.find(queryObj).skip(skip).limit(limit);
     const totalPages = Math.ceil(totalUsers / limit);
+
     res.status(200).json({
       message: `We've catched ${totalUsers} users successfully ✔`,
       pages: `Page ${page} out of ${totalPages}`,
