@@ -1,0 +1,165 @@
+const User = require("../model/userModel");
+
+// exports.getAllUsers = async (req, res) => {
+//   try {
+
+//     const page = parseInt(req.query.page) || 1;
+//     const limit = parseInt(req.query.limit) || 10;
+
+//     const skip = (page - 1) * limit;
+
+//     const users = await User.find().skip(skip).limit(limit);
+//     res.status(200).json({
+//       message: `We've catched ${users.length} users successfully ✔`,
+//       data: users,
+//     });
+//   } catch (error) {
+//     res.status(400).json({
+//       message: "Server Error ❌",
+//       error: error.message,
+//     });
+//   }
+// };
+
+exports.getAllUsers = async (req, res) => {
+  try {
+    const queryObj = { ...req.query };
+
+    const excludedFields = ["page", "limit", "sort", "fields"];
+    excludedFields.forEach((el) => delete queryObj[el]);
+
+    Object.keys(queryObj).forEach((key) => {
+      if (
+        typeof queryObj[key] === "string" &&
+        key !== "email" &&
+        key !== "gender"
+      ) {
+        queryObj[key] = { $regex: queryObj[key], $options: "i" };
+      }
+    });
+
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+
+    const totalUsers = await User.countDocuments(queryObj);
+
+    const users = await User.find(queryObj).skip(skip).limit(limit);
+
+    const totalPages = Math.ceil(totalUsers / limit);
+    res.status(200).json({
+      message: `We've catched ${totalUsers} users successfully ✔`,
+      pages: `Page ${page} out of ${totalPages}`,
+      count: users.length,
+      data: users,
+    });
+  } catch (error) {
+    res.status(400).json({
+      message: "Server Error ❌",
+      error: error.message,
+    });
+  }
+};
+
+exports.createUser = async (req, res) => {
+  try {
+    const { name, email } = req.body;
+    const newUser = await User.create({ name, email });
+    res.status(201).json({
+      message: "new User has been created successfully ✔",
+      data: newUser,
+    });
+  } catch (error) {
+    res.status(400).json({
+      message: "Server Error ❌",
+      error: error.message,
+    });
+  }
+};
+
+exports.getUserById = async (req, res) => {
+  try {
+    const userId = req.params.id;
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        message: "User not found ❌",
+      });
+    }
+    res.status(200).json({
+      message: "User has been catched successfully ✔",
+      data: user,
+    });
+  } catch (error) {
+    res.status(400).json({
+      message: "Server Error ❌",
+      error: error.message,
+    });
+  }
+};
+
+exports.deleteUser = async (req, res) => {
+  try {
+    const userId = req.params.id;
+    const deletedUser = await User.findByIdAndDelete(userId);
+    if (!deletedUser) {
+      return res.status(404).json({
+        message: "User not found ❌",
+      });
+    }
+    res.status(200).json({
+      message: "User has been deleted Successfully ✔",
+      data: deletedUser,
+    });
+  } catch (error) {
+    res.status(400).json({
+      message: "Server Error ❌",
+      error: error.message,
+    });
+  }
+};
+
+exports.updateUser = async (req, res) => {
+  try {
+    const userId = req.params.id;
+    const { name, email } = req.body;
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      { name, email },
+      { new: true, runValidators: true },
+    );
+    if (!updatedUser) {
+      return res.status(404).json({
+        message: "User not found ❌",
+      });
+    }
+    res.status(200).json({
+      message: "User has been updated Successfully ✔",
+      oldData: updatedUser,
+      newData: { name, email },
+    });
+  } catch (error) {
+    res.status(400).json({
+      message: "Server Error ❌",
+      error: error.message,
+    });
+  }
+};
+
+exports.searchUser = async (req, res) => {
+  try {
+    const { name } = req.query;
+    const users = await User.find({
+      name: { $regex: name, $options: "i" },
+    });
+    res.status(200).json({
+      message: `We've catched ${users.length} users successfully ✔`,
+      data: users,
+    });
+  } catch (error) {
+    res.status(400).json({
+      message: "Server Error ❌",
+      error: error.message,
+    });
+  }
+};
