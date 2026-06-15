@@ -4,6 +4,7 @@ const cors = require("cors");
 const mongoose = require("mongoose");
 
 const userRoutes = require('./routes/userRoutes');
+const productRoutes = require('./routes/productRoutes')
 
 const app = express();
 const MONGO_URI = process.env.MONGODB_URI;
@@ -18,6 +19,7 @@ app.get("/", (req, res) => {
 });
 
 app.use('/api/users', userRoutes);
+app.use('/api/products','productRoutes')
 
 app.get("/api/data", (req, res) => {
   const data = {
