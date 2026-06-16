@@ -99,3 +99,28 @@ exports.createProduct = async (req, res) => {
     });
   }
 };
+
+exports.deleteProduct = async (req, res) => {
+  try {
+    const productId = req.params.id;
+    const deletedProduct = await Product.findByIdAndDelete(productId);
+
+    if (!deletedProduct) {
+      return res.status(404).json({
+        message: "Product not found ❌",
+      });
+    }
+
+    res.status(200).json({
+      message: "Product has been deleted Successfully ✅",
+      data: deletedProduct,
+    });
+  } catch (error) {
+    res.status(400).json({
+      message: "Server Error ❌",
+      error: error.message,
+    });
+  }
+};
+
+
