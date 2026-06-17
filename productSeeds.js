@@ -27,7 +27,8 @@ const productSeed = async (req, res) => {
         category: faker.commerce.department(),
         name: faker.commerce.productName(),
         purchasePrice: purchasePrice,
-        sellingPrice: sellingPrice
+        sellingPrice: sellingPrice,
+        quantity: faker.number.int({ min: 0, max: 200 }),
       });
     }
 
