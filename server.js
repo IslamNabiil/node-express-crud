@@ -3,8 +3,9 @@ const express = require("express");
 const cors = require("cors");
 const mongoose = require("mongoose");
 
-const userRoutes = require('./routes/userRoutes');
-const productRoutes = require('./routes/productRoutes')
+const userRoutes = require("./routes/userRoutes");
+const productRoutes = require("./routes/productRoutes");
+const invoiceRoutes = require("./routes/invoiceRoutes");
 
 const app = express();
 const MONGO_URI = process.env.MONGODB_URI;
@@ -18,8 +19,9 @@ app.get("/", (req, res) => {
   res.send("Hello World!");
 });
 
-app.use('/api/users', userRoutes);
-app.use('/api/products', productRoutes)
+app.use("/api/users", userRoutes);
+app.use("/api/products", productRoutes);
+app.use('/api/invoices', invoiceRoutes)
 
 app.get("/api/data", (req, res) => {
   const data = {
