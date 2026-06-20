@@ -97,7 +97,7 @@ exports.getInvoiceById = async (req, res) => {
       .populate("customer", "name email")
       .populate("items.product", "name productCode sellingPrice");
     if (!selectedInvoice) {
-      return res.status(400).json({
+      return res.status(404).json({
         message: `We didn't find an invoice with the id ${invoiceId}`,
       });
     }
@@ -114,3 +114,36 @@ exports.getInvoiceById = async (req, res) => {
   }
 };
 
+const deleteInvoice = async (req, res) => {
+  try {
+    const invoiceId = req.params.id;
+
+    const selectedInvoice = await Invoice.findById(invoiceId)
+
+    if (!selectedInvoice) {
+      return res.status(404).json({
+        message: `We didn't find an invoice with the id ${invoiceId}`,
+      });
+    }
+
+    for (const item of selectedInvoice.items) {
+      const product = await Product.findById(item.product);
+      if (product) {
+        product.quantity += item.quantity;
+        await product.save();
+      }
+    }
+
+    await Invoice.findByIdAndDelete(invoiceId);
+
+    res.status(200).json({
+      message: `Invoice number ${selectedInvoice.invoiceNumber} has been deleted Successfully ✔`,
+      data: selectedInvoice,
+    });
+  } catch (error) {
+    res.status(400).json({
+      message: "Server Error ❌",
+      error: error.message,
+    });
+  }
+};
