@@ -44,7 +44,7 @@ exports.createInvoice = async (req, res) => {
     const counter = await Counter.findOneAndUpdate(
       { id: "invoiceSerial" },
       { $inc: { seq: 1 } },
-      { new: true, upsert: true },
+      { returnDocument: "after", upsert: true }, // ✅ المونجوز هتحب السطر ده جداً والتحذير هيختفي فوراً
     );
 
     const invoiceNumber = `INV-${counter.seq.toString().padStart(5, "0")}`;
@@ -117,30 +117,69 @@ exports.getInvoiceById = async (req, res) => {
 exports.deleteInvoice = async (req, res) => {
   try {
     const invoiceId = req.params.id;
+    console.log("--------------------------------------------------");
+    console.log(`🚀 جاري بدء عملية الحذف للفاتورة ذات الـ ID: ${invoiceId}`);
 
+    // 1️⃣ جلب الفاتورة مشحونة بالأسماء فوراً (البديل المريح)
     const selectedInvoice = await Invoice.findById(invoiceId)
+      .populate("customer", "name email")
+      .populate("items.product", "name productCode sellingPrice");
 
     if (!selectedInvoice) {
+      console.log("⚠️ لم يتم العثور على الفاتورة في قاعدة البيانات!");
       return res.status(404).json({
         message: `We didn't find an invoice with the id ${invoiceId}`,
       });
     }
 
+    console.log(
+      `👀 الفاتورة ممسوكة في الذاكرة حالياً ورقمها: ${selectedInvoice.invoiceNumber}`,
+    );
+    console.log(
+      `👤 اسم العميل المترجم جوه السيرفر حالا: ${selectedInvoice.customer.name}`,
+    );
+
+    // 2️⃣ اللوب لإرجاع البضاعة للمخزن
+    console.log("📦 جاري جرد وإعادة المنتجات إلى المخزن...");
     for (const item of selectedInvoice.items) {
-      const product = await Product.findById(item.product);
+      // 🔥 كشاف الـ Console: بنشوف الصنف اللي عليه الدور باصص لإيه
+      console.log(
+        `   🔸 الصنف الحالي المترجم اسمُه: "${item.product.name}"، والـ ID بتاعه هو: ${item.product._id}`,
+      );
+
+      const product = await Product.findById(item.product._id); // سحبنا الصنف بـ ID الصافي المترجم
+
       if (product) {
-        product.quantity += item.quantity;
+        console.log(
+          `      الكمية قبل الرد في المخزن: [${product.quantity}] | كمية الفاتورة المراد ردها: [${item.quantity}]`,
+        );
+
+        product.quantity += item.quantity; // رد البضاعة
         await product.save();
+
+        console.log(
+          `      ✅ تم الرد! الكمية الجديدة الحالية في المخزن أصبحت: [${product.quantity}]`,
+        );
       }
     }
 
+    // 3️⃣ الحذف الفعلي بعد ما أخذنا نسختنا المترجمة وجردنا المخزن
     await Invoice.findByIdAndDelete(invoiceId);
+    console.log(
+      "🗑️ تم حذف الفاتورة نهائياً من قاعدة البيانات (MongoDB) بنجاح!",
+    );
 
+    // 4️⃣ الرد النهائي بالداتا المترجمة الجاهزة في الذاكرة
+    console.log(
+      "✨ جاري إرسال الرد النهائي الشيك إلى الـ Postman ببيانات الفاتورة الممسوحة...",
+    );
     res.status(200).json({
       message: `Invoice number ${selectedInvoice.invoiceNumber} has been deleted Successfully ✔`,
-      data: selectedInvoice,
+      data: selectedInvoice, // هترجع ملياااانة أسماء لأننا عملنا بوبيليت في أول خطوة فوق!
     });
   } catch (error) {
+    console.log("❌ حصل كارثة أو إيرور مفاجئ:");
+    console.log(error.message);
     res.status(400).json({
       message: "Server Error ❌",
       error: error.message,
