@@ -114,7 +114,7 @@ exports.getInvoiceById = async (req, res) => {
   }
 };
 
-const deleteInvoice = async (req, res) => {
+exports.deleteInvoice = async (req, res) => {
   try {
     const invoiceId = req.params.id;
 
