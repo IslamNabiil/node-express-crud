@@ -6,25 +6,27 @@ exports.createInvoice = async (req, res) => {
   try {
     const { discount, customer, items } = req.body;
     if (!customer || !items || items.length === 0) {
-      return res.status(400).json({
-        message: "All fields are required ❌",
-      });
+      return res.status(400).json({ message: "All fields are required ❌" });
     }
 
     let subTotal = 0;
     const invoiceItems = [];
+    const productsToUpdate = []; // مصفوفة مؤقتة هنشيل فيها المنتجات الجاهزة للتحديث
 
+    // ================== 🔄 الشوط الأول: لوب الفحص والأمان فقط ==================
     for (const item of items) {
       const product = await Product.findById(item.product);
 
       if (!product) {
-        return res.status(404).json({
-          message: `Product with ID ${item.product} not found ❌`,
-        });
+        return res
+          .status(404)
+          .json({ message: `Product with ID ${item.product} not found ❌` });
       }
+
       if (item.quantity > product.quantity) {
+        // لو صنف واحد باظ، هيعمل return فورا والمخزن لم يُلمس!
         return res.status(400).json({
-          message: `we don't have enough ${product.name} in stock, we only have ${product.quantity} ${product.name} in stock ❌`,
+          message: `We don't have enough ${product.name} in stock, we only have ${product.quantity} in stock ❌`,
         });
       }
 
@@ -37,32 +39,51 @@ exports.createInvoice = async (req, res) => {
         price: itemPrice,
       });
 
-      product.quantity -= item.quantity;
-      await product.save();
+      // بنخزن الكائن والكمية المراد خصمها في الذاكرة مؤقتاً ومبنجريش نعمل save في الداتابيز حالا
+      productsToUpdate.push({
+        productDoc: product,
+        quantityToDeduct: item.quantity,
+      });
     }
-    // const invoiceNumber = `INV-${Math.floor(10000 + Math.random() * 90000)}`;
+    // =========================================================================
+
+    // ================== 📦 الشوط الثاني: لوب التحديث الفعلي للمخزن ==================
+    // السيرفر مش هيروح للسطور دي إلا لو كل الأصناف فوق نجحت في الفحص 100%
+    for (const update of productsToUpdate) {
+      update.productDoc.quantity -= update.quantityToDeduct;
+      await update.productDoc.save(); // الحفظ الآمن في الداتابيز
+    }
+    // =========================================================================
+
+    // ولد رقم الفاتورة النظيف بالمسلسل
     const counter = await Counter.findOneAndUpdate(
       { id: "invoiceSerial" },
       { $inc: { seq: 1 } },
-      { returnDocument: "after", upsert: true }, // ✅ المونجوز هتحب السطر ده جداً والتحذير هيختفي فوراً
+      { returnDocument: "after", upsert: true },
     );
 
     const invoiceNumber = `INV-${counter.seq.toString().padStart(5, "0")}`;
+
     const discountAmount = discount || 0;
     const totalAmount = subTotal - discountAmount;
 
+    // حفظ الفاتورة
     const newInvoice = await Invoice.create({
       invoiceNumber,
-      discount,
-      customer,
+      discount: discountAmount,
+      customer: customer,
       items: invoiceItems,
       subTotal,
       totalAmount,
     });
 
+    const populatedInvoice = await newInvoice
+      .populate("customer", "name email")
+      .populate("items.product", "name productCode");
+
     res.status(201).json({
-      message: `Invoice numbre ${invoiceNumber} has been added successfully ✔`,
-      data: newInvoice,
+      message: `Invoice number ${invoiceNumber} has been added successfully ✔`,
+      data: populatedInvoice,
     });
   } catch (error) {
     res.status(400).json({
@@ -118,7 +139,7 @@ exports.deleteInvoice = async (req, res) => {
   try {
     const invoiceId = req.params.id;
     console.log("--------------------------------------------------");
-    console.log(`🚀 جاري بدء عملية الحذف للفاتورة ذات الـ ID: ${invoiceId}`);
+    console.log(`🚀 Starging to delete the ID: ${invoiceId}`);
 
     // 1️⃣ جلب الفاتورة مشحونة بالأسماء فوراً (البديل المريح)
     const selectedInvoice = await Invoice.findById(invoiceId)
@@ -133,46 +154,40 @@ exports.deleteInvoice = async (req, res) => {
     }
 
     console.log(
-      `👀 الفاتورة ممسوكة في الذاكرة حالياً ورقمها: ${selectedInvoice.invoiceNumber}`,
+      `👀 We've catched the invoice : ${selectedInvoice.invoiceNumber}`,
     );
-    console.log(
-      `👤 اسم العميل المترجم جوه السيرفر حالا: ${selectedInvoice.customer.name}`,
-    );
+    console.log(`👤 Customer's name : ${selectedInvoice.customer.name}`);
 
     // 2️⃣ اللوب لإرجاع البضاعة للمخزن
-    console.log("📦 جاري جرد وإعادة المنتجات إلى المخزن...");
+    console.log("📦 refund the storage ...");
     for (const item of selectedInvoice.items) {
       // 🔥 كشاف الـ Console: بنشوف الصنف اللي عليه الدور باصص لإيه
       console.log(
-        `   🔸 الصنف الحالي المترجم اسمُه: "${item.product.name}"، والـ ID بتاعه هو: ${item.product._id}`,
+        `   🔸 Current product's name : "${item.product.name}"، and it's ID : ${item.product._id}`,
       );
 
       const product = await Product.findById(item.product._id); // سحبنا الصنف بـ ID الصافي المترجم
 
       if (product) {
         console.log(
-          `      الكمية قبل الرد في المخزن: [${product.quantity}] | كمية الفاتورة المراد ردها: [${item.quantity}]`,
+          `      Quantity before refund: [${product.quantity}] | refund's quantity : [${item.quantity}]`,
         );
 
         product.quantity += item.quantity; // رد البضاعة
         await product.save();
 
         console.log(
-          `      ✅ تم الرد! الكمية الجديدة الحالية في المخزن أصبحت: [${product.quantity}]`,
+          `      ✅ the new storage's quantity is here : [${product.quantity}]`,
         );
       }
     }
 
     // 3️⃣ الحذف الفعلي بعد ما أخذنا نسختنا المترجمة وجردنا المخزن
     await Invoice.findByIdAndDelete(invoiceId);
-    console.log(
-      "🗑️ تم حذف الفاتورة نهائياً من قاعدة البيانات (MongoDB) بنجاح!",
-    );
+    console.log("🗑️ the Invoice has been deleted from the DB successfully");
 
     // 4️⃣ الرد النهائي بالداتا المترجمة الجاهزة في الذاكرة
-    console.log(
-      "✨ جاري إرسال الرد النهائي الشيك إلى الـ Postman ببيانات الفاتورة الممسوحة...",
-    );
+    console.log("✨ Sending the data from the postman to the DB...");
     res.status(200).json({
       message: `Invoice number ${selectedInvoice.invoiceNumber} has been deleted Successfully ✔`,
       data: selectedInvoice, // هترجع ملياااانة أسماء لأننا عملنا بوبيليت في أول خطوة فوق!
