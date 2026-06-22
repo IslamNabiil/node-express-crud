@@ -58,11 +58,21 @@ exports.createInv = async (req, res) => {
     }
 
     const total = subTotal - (discount || 0);
+
+    const user = await User.findById(customer);
+    if (!user) {
+      return res.status(400).json({
+        message: `There is no user with the id : ${customer}`,
+      });
+    }
+
     const counter = await Counter.findOneAndUpdate(
       { id: "invoiceId" }, // 1. دور على العداد بتاع الفواتير
       { $inc: { seq: 1 } }, // 2. زود الـ seq بمقدار 1 (+1)
       { new: true, upsert: true }, // 3. هتلر البرمجة: لو مش موجود أنشئه (upsert)، ورجعلي الرقم الجديد بعد الزيادة (new)
     );
+
+    const updatedBalance = user.balance + total;
 
     // كدة بقا معانا رقم الفاتورة الجاهز جوة: counter.seq
 
@@ -73,18 +83,19 @@ exports.createInv = async (req, res) => {
       subTotal,
       discount,
       totalAmount: total,
+      balance: updatedBalance,
     });
 
+    user.balance = updatedBalance;
+    await user.save();
+
     await newInv.populate([
-      { path: "customer", select: "name email" },
+      { path: "customer", select: "name email balance" },
       { path: "items.product", select: "name category sellingPrice" },
     ]);
 
     return res.status(201).json({
       message: "Everything is all right ✔",
-      //   subTotal: subTotal,
-      //   discount: discount || 0,
-      //   total: total, // مبروك الصافي طلع للنور 🎉
       data: newInv,
     });
   } catch (error) {

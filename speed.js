@@ -24,6 +24,7 @@ const speed = async (req, res) => {
         gender: faker.person.gender(),
         sexType: faker.person.sexType(),
         sex: faker.person.sex(),
+        balance: faker.number.int({ min: 0, max: 10000})
       });
     }
 

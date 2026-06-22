@@ -58,7 +58,7 @@ exports.getAllUsers = async (req, res) => {
 
 exports.createUser = async (req, res) => {
   try {
-    const { name, email, password, color, petName, gender, sexType, sex } =
+    const { name, email, password, color, petName, gender, sexType, sex, balance } =
       req.body;
     const newUser = await User.create({
       name,
@@ -69,6 +69,7 @@ exports.createUser = async (req, res) => {
       gender,
       sexType,
       sex,
+      balance,
     });
     res.status(201).json({
       message: "new User has been created successfully ✔",
