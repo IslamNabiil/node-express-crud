@@ -94,3 +94,27 @@ exports.createInv = async (req, res) => {
     });
   }
 };
+
+exports.getAllInv = async (req, res) => {
+  try {
+    const inv = await Invoice.find()
+      .populate("customer", "name email")
+      .populate("items.product", "name category sellingPrice");
+
+    if (!inv || inv.length === 0) {
+      return res.status(400).json({
+        message: "No invoices found ❌",
+      });
+    }
+
+    res.status(200).json({
+      message: `we've catched ${inv.length} inv successfully ✔`,
+      data: inv,
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: "Server Error ❌",
+      error: error.message,
+    });
+  }
+};
