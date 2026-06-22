@@ -15,12 +15,13 @@ exports.createInv = async (req, res) => {
     }
 
     let subTotal = 0;
+    let finalData = [];
 
     for (let item of items) {
       const product = await Product.findById(item._id);
 
-      console.log(product);
-      console.log(item._id);
+      console.log("Product Info:", product);
+      console.log("Item Id: ", item._id);
 
       if (!product) {
         return res.status(404).json({
@@ -33,6 +34,12 @@ exports.createInv = async (req, res) => {
           message: `the storage has less than needed - we only have ${product.quantity} from the item : ${item._id}`,
         });
       }
+
+      if (item.quantity < 1) {
+        return res.status(400).json({
+          message: `الكميه المباعه لا يمكن ان تكون اقل من 1 قطعه مثل هذا الصنف : ${item._id}`,
+        });
+      }
     }
 
     for (let item of items) {
@@ -40,18 +47,48 @@ exports.createInv = async (req, res) => {
 
       subTotal += product.sellingPrice * item.quantity;
 
+      finalData.push({
+        product: product._id,
+        quantity: item.quantity,
+        price: product.sellingPrice,
+      });
+
       product.quantity -= item.quantity;
       await product.save();
     }
 
-    console.log(`subTotal before selling the items : ${subTotal}`);
+    const total = subTotal - (discount || 0);
+    const counter = await Counter.findOneAndUpdate(
+      { id: "invoiceId" }, // 1. دور على العداد بتاع الفواتير
+      { $inc: { seq: 1 } }, // 2. زود الـ seq بمقدار 1 (+1)
+      { new: true, upsert: true }, // 3. هتلر البرمجة: لو مش موجود أنشئه (upsert)، ورجعلي الرقم الجديد بعد الزيادة (new)
+    );
+
+    // كدة بقا معانا رقم الفاتورة الجاهز جوة: counter.seq
+
+    const newInv = await Invoice.create({
+      invoiceNumber: counter.seq,
+      customer,
+      items: finalData,
+      subTotal,
+      discount,
+      totalAmount: total,
+    });
+
+    await newInv.populate([
+      { path: "customer", select: "name email" },
+      { path: "items.product", select: "name category sellingPrice" },
+    ]);
 
     return res.status(201).json({
-      message: "Every thing is allright ✔",
-      subTotal: subTotal,
+      message: "Everything is all right ✔",
+      //   subTotal: subTotal,
+      //   discount: discount || 0,
+      //   total: total, // مبروك الصافي طلع للنور 🎉
+      data: newInv,
     });
   } catch (error) {
-    res.status(400).json({
+    res.status(500).json({
       message: "Server Error ❌",
       error: error.message,
     });
