@@ -28,10 +28,10 @@ const InvSeed = async (count = 5) => {
 
     for (let i = 0; i < count; i++) {
       const randomUser = user[Math.floor(Math.random() * user.length)];
-      console.log(randomUser);
+      // console.log(randomUser);
 
       const itemsCount = Math.floor(Math.random() * 5) + 1;
-      console.log(`ItemsCount : ${itemsCount}`);
+      // console.log(`ItemsCount : ${itemsCount}`);
 
       let chosenProduct = new Set();
       while (chosenProduct.size < itemsCount) {
@@ -39,7 +39,7 @@ const InvSeed = async (count = 5) => {
           product[Math.floor(Math.random() * product.length)];
         chosenProduct.add(randomProduct);
       }
-      console.log(`ChosenProducts : ${[...chosenProduct]}`);
+      // console.log(`ChosenProducts : ${[...chosenProduct]}`);
 
       // -------------------------------------------------------------------------
       let finalData = [];
@@ -62,20 +62,20 @@ const InvSeed = async (count = 5) => {
       }
 
       const discount = Math.floor(Math.random() * 100) || 0;
-      const total = (subTotal - discount < 0) ? 0 : ( subTotal - discount )
+      const total = subTotal - discount < 0 ? 0 : subTotal - discount;
 
-      console.log("--- E-Inv ---");
-      console.log("Customer ID:", randomUser._id);
-      console.log("Items Data:", finalData);
-      console.log("SubTotal:", subTotal);
-      console.log("Discount:", discount);
-      console.log("Total Amount (Net):", total);
+      // console.log("--- E-Inv ---");
+      // console.log("Customer ID:", randomUser._id);
+      // console.log("Items Data:", finalData);
+      // console.log("SubTotal:", subTotal);
+      // console.log("Discount:", discount);
+      // console.log("Total Amount (Net):", total);
       // -------------------------------------------------------------
 
       const counter = await Counter.findOneAndUpdate(
         { id: "invoiceId" },
         { $inc: { seq: 1 } },
-        { new: true, upsert: true },
+        { returnDocument: "after", upsert: true }, // تظبيطة المونجوس الجديدة تريح البال 😎
       );
 
       const updatedBalance = randomUser.balance + total;
@@ -99,4 +99,4 @@ const InvSeed = async (count = 5) => {
   }
 };
 
-InvSeed(10);
+InvSeed(156);
