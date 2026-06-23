@@ -118,6 +118,13 @@ exports.getAllInv = async (req, res) => {
       });
     }
 
+    const queryObj = { ...req.query };
+    const excludedFields = ["sort", "fields", "page", "limit"];
+
+    excludedFields.forEach((el) => delete queryObj[el]);
+
+    
+
     res.status(200).json({
       message: `we've catched ${inv.length} inv successfully ✔`,
       data: inv,

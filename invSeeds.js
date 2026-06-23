@@ -4,7 +4,6 @@ const Invoice = require("./model/invoiceModel");
 const User = require("./model/userModel");
 const Product = require("./model/productModel");
 const Counter = require("./model/counterModel");
-const { faker } = require("@faker-js/faker");
 
 const MONGODB = process.env.MONGODB_URI;
 
