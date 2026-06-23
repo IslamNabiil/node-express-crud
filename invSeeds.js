@@ -1,98 +1,103 @@
 require("dotenv").config();
 const mongoose = require("mongoose");
-const { faker } = require("@faker-js/faker"); // 🛠️ تم تصحيح الكلمة
 const Invoice = require("./model/invoiceModel");
-const User = require("./model/userModel");       // 🔥 استدعينا موديل العملاء
-const Product = require("./model/productModel"); // 🔥 استدعينا موديل المنتجات
-const Counter = require("./model/counterModel"); // 🔥 استدعينا العداد عشان نخليه يبدأ صح
+const User = require("./model/userModel");
+const Product = require("./model/productModel");
+const Counter = require("./model/counterModel");
+const { faker } = require("@faker-js/faker");
 
 const MONGODB = process.env.MONGODB_URI;
 
-const invSeed = async () => { // 🛠️ شيلنا req, res لأن السكريبت بيشتغل لوحده من الـ Terminal
+const InvSeed = async (count = 5) => {
   try {
     await mongoose.connect(MONGODB);
     console.log("DB has connected successfully ✔");
 
-    // 1️⃣ مسح البيانات القديمة للفواتير والعدادات
     await Invoice.deleteMany({});
-    await Counter.deleteMany({ id: "invoiceSerial" }); // بنصفر العداد عشان يبدأ من INV-00001
-    console.log("Old invoices and counters have been deleted successfully ✔");
+    console.log("Old data has been deleted successfully ✔");
 
-    // 2️⃣ ⚡ [أهم خطوة]: سحب العملاء والمنتجات الحقيقية من الداتابيز
-    const allUsers = await User.find({}, "_id");
-    const allProducts = await Product.find({}, "_id sellingPrice name");
+    const user = await User.find();
+    const product = await Product.find();
 
-    if (allUsers.length === 0 || allProducts.length === 0) {
-      console.log("⚠️ عفواً! يجب أن تحتوي قاعدة البيانات على مستخدمين ومنتجات أولاً قبل توليد الفواتير.");
+    if (user.length === 0 || product.length === 0) {
+      console.log(
+        "Make sure that you have users and products in your DB first",
+      );
       mongoose.connection.close();
       return;
     }
 
-    const fakeData = [];
-    console.log("⏳ جاري توليد 500 فاتورة وهمية منطقية...");
+    for (let i = 0; i < count; i++) {
+      const randomUser = user[Math.floor(Math.random() * user.length)];
+      console.log(randomUser);
 
-    // 3️⃣ اللوب لإنشاء الـ 500 فاتورة
-    for (let i = 1; i <= 500; i++) {
-      
-      // أ) اختيار عميل عشوائي حقيقي من الداتابيز
-      const randomCustomer = faker.helpers.arrayElement(allUsers)._id;
+      const itemsCount = Math.floor(Math.random() * 5) + 1;
+      console.log(`ItemsCount : ${itemsCount}`);
 
-      // ب) تحديد عدد عشوائي من الأصناف جوه الفاتورة الواحدة (مثلاً من صنف لـ 4 أصناف)
-      const itemsCount = faker.number.int({ min: 1, max: 4 });
-      const invoiceItems = [];
+      let chosenProduct = new Set();
+      while (chosenProduct.size < itemsCount) {
+        const randomProduct =
+          product[Math.floor(Math.random() * product.length)];
+        chosenProduct.add(randomProduct);
+      }
+      console.log(`ChosenProducts : ${[...chosenProduct]}`);
+
+      // -------------------------------------------------------------------------
+      let finalData = [];
       let subTotal = 0;
 
-      for (let j = 0; j < itemsCount; j++) {
-        // اختيار منتج عشوائي حقيقي
-        const randomProduct = faker.helpers.arrayElement(allProducts);
-        const quantity = faker.number.int({ min: 1, max: 5 });
-        const price = randomProduct.sellingPrice;
+      for (let prod of chosenProduct) {
+        const quantity = Math.floor(Math.random() * 10) + 1;
 
-        subTotal += price * quantity;
+        subTotal += prod.sellingPrice * quantity;
 
-        invoiceItems.push({
-          product: randomProduct._id,
+        // جوة الـ for (let prod of chosenProducts)
+        prod.quantity -= quantity; // بنقص الكمية اللي اتباعت وهمي
+        await prod.save(); // بنسيف الكمية الجديدة في جدول الـ Products
+
+        finalData.push({
+          product: prod._id,
           quantity: quantity,
-          price: price
+          price: prod.sellingPrice,
         });
       }
 
-      // ج) حسابات الخصم والصافي
-      const discount = faker.helpers.arrayElement([0, 10, 15, 20, 50]); // قيم خصم عشوائية شيك
-      const totalAmount = Math.max(0, subTotal - discount); // لضمان عدم ظهور أرقام بالسالب
+      const discount = Math.floor(Math.random() * 100) || 0;
+      const total = (subTotal - discount < 0) ? 0 : ( subTotal - discount )
 
-      // د) توليد رقم مسلسل الفاتورة محاكي للعداد الحقيقي (INV-00001 لحد INV-00500)
-      const invoiceNumber = `INV-${i.toString().padStart(5, "0")}`;
+      console.log("--- E-Inv ---");
+      console.log("Customer ID:", randomUser._id);
+      console.log("Items Data:", finalData);
+      console.log("SubTotal:", subTotal);
+      console.log("Discount:", discount);
+      console.log("Total Amount (Net):", total);
+      // -------------------------------------------------------------
 
+      const counter = await Counter.findOneAndUpdate(
+        { id: "invoiceId" },
+        { $inc: { seq: 1 } },
+        { new: true, upsert: true },
+      );
 
-      // هـ) رمي كائن الفاتورة الجاهز في المصفوفة العملاقة
-      fakeData.push({
-        invoiceNumber,
-        customer: randomCustomer,
-        items: invoiceItems,
-        subTotal: parseFloat(subTotal.toFixed(2)), // تقريب عشري محاسبي مظبوط
+      const updatedBalance = randomUser.balance + total;
+      randomUser.balance = updatedBalance;
+      await randomUser.save();
+
+      await Invoice.create({
+        invoiceNumber: counter.seq,
+        customer: randomUser._id,
+        items: finalData,
+        subTotal,
         discount,
-        totalAmount: parseFloat(totalAmount.toFixed(2)),
-        createdAt: faker.date.past({ years: 1 }) // تواريخ فواتير قديمة عشوائية على مدار سنة للمراجعة الحسابية
+        totalAmount: total,
+        balance: updatedBalance, // لقطة الرصيد اللحظي
       });
     }
-
-    // 4️⃣ حفظ الـ 500 فاتورة دفعة واحدة في الداتابيز لسرعة الأداء (Bulk Insert)
-    await Invoice.insertMany(fakeData);
-    console.log("✅ تم حفظ 500 فاتورة وهمية بنجاح جوه قاعدة البيانات!");
-
-    // 5️⃣ تحديث العداد الحقيقي عشان لما تيجي تكريت فاتورة يدوية من Postman يبدأ من INV-00501
-    await Counter.create({ id: "invoiceSerial", seq: 500 });
-    console.log("🔢 تم ضبط مسلسل العداد الحقيقي على الرقم 500 بنجاح.");
-
-    console.log("🔌 جاري إغلاق الاتصال بقاعدة البيانات...");
     mongoose.connection.close();
-    console.log("🏁 انتهت العملية بسلام!");
-
   } catch (error) {
-    console.error("❌ Error seeding data: ", error);
+    console.error("Error seeding data:", error);
     mongoose.connection.close();
   }
 };
 
-invSeed();
+InvSeed(10);
