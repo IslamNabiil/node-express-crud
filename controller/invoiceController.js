@@ -112,6 +112,16 @@ exports.getAllInv = async (req, res) => {
     const excludedFields = ["page", "limit", "sort", "fields"];
     excludedFields.forEach((el) => delete queryObj[el]);
 
+    Object.keys(queryObj).forEach((key) => {
+      if (
+        typeof queryObj[key] === "string" &&
+        key !== "customer" &&
+        key !== "invoiceNumber"
+      ) {
+        queryObj[key] = { $regex: queryObj[key], $options: "i" };
+      }
+    });
+
     let query = Invoice.find(queryObj);
 
     if (req.query.sort) {
