@@ -56,6 +56,7 @@ const InvSeed = async (count = 5) => {
 
         finalData.push({
           product: prod._id,
+          productName: prod.name,
           quantity: quantity,
           price: prod.sellingPrice,
         });
@@ -85,6 +86,7 @@ const InvSeed = async (count = 5) => {
       await Invoice.create({
         invoiceNumber: counter.seq,
         customer: randomUser._id,
+        customerName: randomUser.name,
         items: finalData,
         subTotal,
         discount,
