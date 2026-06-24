@@ -49,6 +49,7 @@ exports.createInv = async (req, res) => {
 
       finalData.push({
         product: product._id,
+        productName: product.name,
         quantity: item.quantity,
         price: product.sellingPrice,
       });
@@ -69,7 +70,7 @@ exports.createInv = async (req, res) => {
     const counter = await Counter.findOneAndUpdate(
       { id: "invoiceId" }, // 1. دور على العداد بتاع الفواتير
       { $inc: { seq: 1 } }, // 2. زود الـ seq بمقدار 1 (+1)
-      { new: true, upsert: true }, // 3. هتلر البرمجة: لو مش موجود أنشئه (upsert)، ورجعلي الرقم الجديد بعد الزيادة (new)
+      { returnDocument: "after" , upsert: true }, // 3. هتلر البرمجة: لو مش موجود أنشئه (upsert)، ورجعلي الرقم الجديد بعد الزيادة (new)
     );
 
     const updatedBalance = user.balance + total;
@@ -79,6 +80,7 @@ exports.createInv = async (req, res) => {
     const newInv = await Invoice.create({
       invoiceNumber: counter.seq,
       customer,
+      customerName: user.name,
       items: finalData,
       subTotal,
       discount,

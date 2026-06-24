@@ -11,11 +11,19 @@ const invoiceSchema = new mongoose.Schema({
     ref: "User",
     required: true,
   },
+  customerName: {
+    type: String,
+    requierd: true,
+  },
   items: [
     {
       product: {
         type: mongoose.Types.ObjectId,
         ref: "Product",
+        required: true,
+      },
+      productName: {
+        type: String,
         required: true,
       },
       quantity: {
