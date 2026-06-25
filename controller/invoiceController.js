@@ -70,9 +70,10 @@ exports.createInv = async (req, res) => {
     const counter = await Counter.findOneAndUpdate(
       { id: "invoiceId" }, // 1. دور على العداد بتاع الفواتير
       { $inc: { seq: 1 } }, // 2. زود الـ seq بمقدار 1 (+1)
-      { returnDocument: "after" , upsert: true }, // 3. هتلر البرمجة: لو مش موجود أنشئه (upsert)، ورجعلي الرقم الجديد بعد الزيادة (new)
+      { returnDocument: "after", upsert: true }, // 3. هتلر البرمجة: لو مش موجود أنشئه (upsert)، ورجعلي الرقم الجديد بعد الزيادة (new)
     );
 
+    const balance = user.balance;
     const updatedBalance = user.balance + total;
 
     // كدة بقا معانا رقم الفاتورة الجاهز جوة: counter.seq
@@ -81,11 +82,12 @@ exports.createInv = async (req, res) => {
       invoiceNumber: counter.seq,
       customer,
       customerName: user.name,
+      balanceBefore: balance,
       items: finalData,
       subTotal,
       discount,
       totalAmount: total,
-      balance: updatedBalance,
+      balanceAfter: updatedBalance,
     });
 
     user.balance = updatedBalance;

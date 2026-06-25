@@ -46,6 +46,16 @@ const invoiceSchema = new mongoose.Schema({
     type: Number,
     default: 0,
   },
+  balanceBefore: {
+    type: Number,
+    required: true,
+    default: 0,
+  },
+  balanceAfter: {
+    type: Number,
+    required: true,
+    default: 0,
+  },
   totalAmount: {
     type: Number,
     required: true,

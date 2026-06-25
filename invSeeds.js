@@ -79,6 +79,7 @@ const InvSeed = async (count = 5) => {
         { returnDocument: "after", upsert: true }, // تظبيطة المونجوس الجديدة تريح البال 😎
       );
 
+      const balance = randomUser.balance;
       const updatedBalance = randomUser.balance + total;
       randomUser.balance = updatedBalance;
       await randomUser.save();
@@ -87,11 +88,12 @@ const InvSeed = async (count = 5) => {
         invoiceNumber: counter.seq,
         customer: randomUser._id,
         customerName: randomUser.name,
+        balanceBefore: balance, // لقطة الرصيد اللحظي
         items: finalData,
         subTotal,
         discount,
         totalAmount: total,
-        balance: updatedBalance, // لقطة الرصيد اللحظي
+        balanceAfter: updatedBalance, // لقطة الرصيد اللحظي
       });
     }
     mongoose.connection.close();
