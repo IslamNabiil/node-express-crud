@@ -15,6 +15,12 @@ exports.getSalesReport = async (req, res) => {
           invoiceCount: { $sum: 1 },
         },
       },
+      {
+        $sort: { netSales: -1 },
+      },
+      {
+        $limit: 5,
+      },
     ]);
 
     // const data =
@@ -23,8 +29,42 @@ exports.getSalesReport = async (req, res) => {
     //     : { totalSales: 0, totalDiscount: 0, netSales: 0, invoiceCount: 0 };
 
     res.status(200).json({
-        message: "Financial Sales Report Generated Successfully ✅📊",
-        data: report,
+      message: "Financial Sales Report Generated Successfully ✅📊",
+      data: report,
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: "Server Error ❌",
+      error: error.message,
+    });
+  }
+};
+
+exports.getTopProductsReport = async (req, res) => {
+  try {
+    const report = await Inv.aggregate([
+      {
+        $unwind: "$items",
+      },
+      {
+        $group: {
+          _id: "$items.productName",
+          totalQuantitySold: { $sum: "$items.quantity" },
+          totalProductRevenue: {
+            $sum: { $multiply: ["$items.price", "$items.quantity"] },
+          },
+        },
+      },
+      {
+        $sort: { totalProductRevenue: -1 },
+      },
+      {
+        $limit: 5,
+      },
+    ]);
+    res.status(200).json({
+      message: "Top Products Report Generated Successfully 📊✅",
+      data: report,
     })
   } catch (error) {
     res.status(500).json({
