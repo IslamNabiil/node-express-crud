@@ -213,9 +213,26 @@ exports.deleteInv = async (req, res) => {
     }
 
     const user = await User.findById(inv.customer);
+    user.balance -= inv.totalAmount;
+    await user.save();
+
+    let data = [];
+
+    const items = inv.items;
+    for (let item of items) {
+      const product = await Product.findById(item.product); //main storage
+      if (product) {
+        product.quantity += item.quantity;
+        data.push(product);
+        await product.save();
+      }
+    }
+
+    await Invoice.findByIdAndDelete(invId);
 
     res.status(200).json({
-      inv,
+      message: `We've deleted the inv num ${inv.invoiceNumber} successfully ✅`,
+      data: inv,
     });
   } catch (error) {
     res.status(500).json({
