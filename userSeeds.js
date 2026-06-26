@@ -5,7 +5,7 @@ const { faker } = require("@faker-js/faker");
 
 const MONGODB = process.env.MONGODB_URI;
 
-const speed = async (req, res) => {
+const user = async (req, res) => {
   try {
     await mongoose.connect(MONGODB);
     console.log("DB has connected successfully ✔");
@@ -14,7 +14,7 @@ const speed = async (req, res) => {
     console.log("Old data has been deleted successfully ✔");
 
     const fakeData = [];
-    for (let i = 0; i < 500; i++) {
+    for (let i = 0; i < 50; i++) {
       fakeData.push({
         name: faker.person.fullName(),
         email: faker.internet.email(),
@@ -38,4 +38,4 @@ const speed = async (req, res) => {
   }
 };
 
-speed();
+user();

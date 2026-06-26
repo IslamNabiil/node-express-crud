@@ -6,6 +6,7 @@ const mongoose = require("mongoose");
 const userRoutes = require("./routes/userRoutes");
 const productRoutes = require("./routes/productRoutes");
 const invoiceRoutes = require("./routes/invoiceRoutes");
+const reportRoutes = require("./routes/reportRoutes");
 
 const app = express();
 const MONGO_URI = process.env.MONGODB_URI;
@@ -21,7 +22,8 @@ app.get("/", (req, res) => {
 
 app.use("/api/users", userRoutes);
 app.use("/api/products", productRoutes);
-app.use('/api/invoices', invoiceRoutes)
+app.use("/api/invoices", invoiceRoutes);
+app.use("/api/reports", reportRoutes);
 
 app.get("/api/data", (req, res) => {
   const data = {
