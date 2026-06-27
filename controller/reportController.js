@@ -2,9 +2,27 @@ const Inv = require("../model/invoiceModel");
 
 exports.getSalesReport = async (req, res) => {
   try {
+    const startDate = req.query.startDate;
+    const endDate = req.query.endDate;
+
+    let dateFilter = {};
+
+    if (startDate || endDate) {
+      dateFilter.createdAt = {};
+
+      if (startDate) {
+        dateFilter.createdAt.$gte = new Date(startDate);
+      }
+      if (endDate) {
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+        dateFilter.createdAt.$lte = end;
+      }
+    }
+
     const report = await Inv.aggregate([
       {
-        $match: {},
+        $match: dateFilter,
       },
       {
         $group: {
@@ -65,7 +83,7 @@ exports.getTopProductsReport = async (req, res) => {
     res.status(200).json({
       message: "Top Products Report Generated Successfully 📊✅",
       data: report,
-    })
+    });
   } catch (error) {
     res.status(500).json({
       message: "Server Error ❌",

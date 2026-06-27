@@ -3,7 +3,7 @@ const router = express.Router();
 
 const reportController = require("../controller/reportController");
 
-router.get("/top-sales", reportController.getSalesReport);
-router.get("/top-products", reportController.getTopProductsReport);
+router.get("/sales-report", reportController.getSalesReport);
+router.get("/products-report", reportController.getTopProductsReport);
 
 module.exports = router;
