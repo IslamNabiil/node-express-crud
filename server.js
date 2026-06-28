@@ -10,6 +10,7 @@ const reportRoutes = require("./routes/reportRoutes");
 
 const app = express();
 const MONGO_URI = process.env.MONGODB_URI;
+const MONGOATLAS_URI = process.env.MONGOATLAS_URI;
 const port = process.env.PORT || 3000;
 
 app.use(cors());
