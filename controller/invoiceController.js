@@ -246,12 +246,12 @@ exports.updateInv = async (req, res) => {
   try {
     // old invoice data
     const { id } = req.params;
-    if (!id) {
+    const oldInv = await Invoice.findById(id);
+    if (!oldInv) {
       return res.status(404).json({
         message: "Invoice not found ❌",
       });
     }
-    const oldInv = await Invoice.findById(id);
 
     // new invoice data
     const { customer, discount, items } = req.body;
@@ -279,8 +279,24 @@ exports.updateInv = async (req, res) => {
         quantity: item.quantity,
         price: product.sellingPrice,
         total: product.sellingPrice * item.quantity,
-      })
+      });
     }
+
+    //calculating the difference between the old and new invoice total
+    const total = subTotal - (discount || 0);
+    const diff = total - oldInv.totalAmount;
+
+    //updating the user balance
+    const user = await User.findById(customer);
+    if (!user) {
+      return res.status(400).json({
+        message: `There is no user with the id : ${customer}`,
+      });
+    }
+
+    user.balance += diff;
+    await user.save();
+
 
     res.status(200).json({
       items: finalData,
