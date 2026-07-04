@@ -241,3 +241,54 @@ exports.deleteInv = async (req, res) => {
     });
   }
 };
+
+exports.updateInv = async (req, res) => {
+  try {
+    // old invoice data
+    const { id } = req.params;
+    if (!id) {
+      return res.status(404).json({
+        message: "Invoice not found ❌",
+      });
+    }
+    const oldInv = await Invoice.findById(id);
+
+    // new invoice data
+    const { customer, discount, items } = req.body;
+    if (!customer || !items || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({
+        message: "All fields must be filled ❌",
+      });
+    }
+
+    let subTotal = 0;
+    let finalData = [];
+
+    for (let item of items) {
+      const product = await Product.findById(item._id); //the data from db
+      if (!product) {
+        return res.status(404).json({
+          message: `There is no item with the id : ${item._id}`,
+        });
+      }
+
+      subTotal += product.sellingPrice * item.quantity;
+      finalData.push({
+        product: product._id,
+        productName: product.name,
+        quantity: item.quantity,
+        price: product.sellingPrice,
+        total: product.sellingPrice * item.quantity,
+      })
+    }
+
+    res.status(200).json({
+      items: finalData,
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: "Server Error ❌",
+      error: error.message,
+    });
+  }
+};

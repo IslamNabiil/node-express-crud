@@ -7,5 +7,6 @@ router.post("/", invoiceController.createInv);
 router.get("/", invoiceController.getAllInv);
 router.get("/:id", invoiceController.getInvById);
 router.delete("/:id", invoiceController.deleteInv);
+router.patch("/:id", invoiceController.updateInv);
 
 module.exports = router;
