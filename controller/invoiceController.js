@@ -290,9 +290,24 @@ exports.updateInv = async (req, res) => {
       const newQty = item.quantity;
       const diffQty = newQty - oldQty;
 
+      product.quantity -= diffQty;
+      await product.save();
+
       // كدا احنا خلصنا الجزئيه بتاع الكميات
+      delete oldItems[product._id.toString()];
+
+      // كدا احنا قدرنا نعالج الفرق بين الكميه القديمه والجديده وحفظناها في ال db
       // نبدا بقي في الجزئيات الباقيه زي اجمالي الفاتوره مثلا
 
+      subTotal += product.sellingPrice * item.quantity;
+
+      finalData.push({
+        product: product._id,
+        productName: product.name,
+        quantity: item.quantity,
+        price: product.sellingPrice,
+        total: product.sellingPrice * item.quantity,
+      });
     }
   } catch (error) {
     res.status(500).json({
