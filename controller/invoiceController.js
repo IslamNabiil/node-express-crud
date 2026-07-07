@@ -264,6 +264,12 @@ exports.updateInv = async (req, res) => {
     let subTotal = 0;
     let finalData = [];
 
+    const oldItems = {}; // الايتمز اللي في الفاتوره القديمه
+    oldInv.items.forEach((item) => {
+      // هنا احنا بنلف علي الفاتوره القديمه وبناخد منها ال id وال quantity بتاع كل واحد فيهم
+      oldItems[item.product.toString()] = item.quantity;
+    });
+
     for (let item of items) {
       const product = await Product.findById(item._id); //the data from db
       if (!product) {
@@ -271,6 +277,15 @@ exports.updateInv = async (req, res) => {
           message: `There is no item with the id : ${item._id}`,
         });
       }
+
+      const oldQty = oldItems[product._id.toString()] || 0; // لو مش موجود في الفاتوره القديمه يبقا 0
+      const newQty = item.quantity;
+      const qtyDiff = newQty - oldQty; // الفرق بين الكميه الجديده والقديمه
+
+      product.quantity -= qtyDiff; // لو الفرق موجب يبقا نقص من المخزن، لو الفرق سالب يبقا زود في المخزن
+      await product.save();
+
+      delete oldItems[product._id.toString()];
 
       subTotal += product.sellingPrice * item.quantity;
       finalData.push({
@@ -280,6 +295,18 @@ exports.updateInv = async (req, res) => {
         price: product.sellingPrice,
         total: product.sellingPrice * item.quantity,
       });
+    }
+
+    // remove any remaining items from oldItems (these are items that were in the old invoice but not in the new one)
+    for (let deletedProductId in oldItems) {
+      const oldQty = oldItems[deletedProductId];
+
+      const qtyDiff = 0 - oldQty;
+      const product = await Product.findById(deletedProductId);
+      if (product) {
+        product.quantity -= qtyDiff;
+        await product.save();
+      }
     }
 
     //calculating the difference between the old and new invoice total
@@ -297,8 +324,19 @@ exports.updateInv = async (req, res) => {
     user.balance += diff;
     await user.save();
 
+    // 🌟 التقفيلة المفقودة: تحديث بيانات الفاتورة القديمة وحفظها
+    oldInv.customer = customer;
+    oldInv.customerName = user.name;
+    oldInv.items = finalData;
+    oldInv.subTotal = subTotal;
+    oldInv.discount = discount;
+    oldInv.totalAmount = total;
+    oldInv.balanceAfter = user.balance; // حركة صايعة مسجلة للرصيد
+
+    await oldInv.save(); // احفظ الفاتورة المعدلة ف الداتابيز 💾
 
     res.status(200).json({
+      message: "Invoice Updated Successfully ✅",
       items: finalData,
     });
   } catch (error) {
