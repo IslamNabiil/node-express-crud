@@ -242,4 +242,62 @@ exports.deleteInv = async (req, res) => {
   }
 };
 
+exports.updateInv = async (req, res) => {
+  try {
+    // هنبدا باننا نجيب الداتا اللي في الفاتوره القديمه والجديده ونقارنهم ببعض
+    const { id } = req.params;
+    const oldInv = await Invoice.findById(id);
+    if (!oldInv) {
+      return res.status(404).json({
+        message: "Invoice not found ❌",
+      });
+    }
 
+    // لو وصل هنا يبقي هو دور علي الفاتوره القديمه ولقاها
+    // كدا احنا المفروض نجيب الداتا بقي بتاع الفاتوره الجديده
+    const { customer, discount, items } = req.body;
+    if (!customer || !items || items.length === 0 || !Array.isArray(items)) {
+      return res.status(400).json({
+        message: "All fields must be filled ❌",
+      });
+    }
+
+    // لو وصل لحد هنا يبقي احنا مسكنا الفاتوره القديمه والداتا بتاع الفاتوره الجديده
+    // المفروض هنعمل اي دلوقتي .. المفروض هنقارن بين الفاتورتين من حيث الاجمالي واسم العميل وكميات المنتجات
+
+    let subTotal = 0;
+    let finalData = [];
+
+    // كنا بنقول اننا قبل م نلف علي النتجات في اللوب الكبيره المفروض اننا هنعمل زي مرجع لينا عشان نقدر نقارن بيه المنتجات القديمه بالجديده ( عشان موضوع المنتجات يعني )
+
+    let oldItems = {};
+    for (let item of oldInv.items) {
+      oldItems[item.product.toString()] = item.quantity;
+    }
+
+    for (let item of items) {
+      const product = await Product.findById(item._id); // احنا هنا بنلف علي كل عنصر تم اختياره للتعديل وناخد الآي دي بتاعه ونتاكد انه موجود في قاعده البيانات
+      if (!product) {
+        return res.status(404).json({
+          message: `There is no product with the Id: ${item._id}`,
+        });
+      }
+
+      // هنا يبقي هو لقي كل المنتجات اللي اتكتبت خلاص وجاهز يكمل - او بمعني اصح كل موديل هيعدي عليه ويكمل يبقي لقاه
+      // المفروض اننا هنا هنتاكد بقي من شويه حاجاه منها .. او اولها الكميه
+
+      const oldQty = oldItems[product._id.toString()] || 0;
+      const newQty = item.quantity;
+      const diffQty = newQty - oldQty;
+
+      // كدا احنا خلصنا الجزئيه بتاع الكميات
+      // نبدا بقي في الجزئيات الباقيه زي اجمالي الفاتوره مثلا
+
+    }
+  } catch (error) {
+    res.status(500).json({
+      message: "Server Error ❌",
+      error: error.message,
+    });
+  }
+};
