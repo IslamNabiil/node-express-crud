@@ -339,10 +339,33 @@ exports.updateInv = async (req, res) => {
     const oldTotalAmount = oldInv.totalAmount;
     const newTotalAmount = newSubTotal - newDiscount;
 
-    user.balance = user.balance + newTotalAmount - oldTotalAmoult
-
-    
+    user.balance = user.balance + newTotalAmount - oldTotalAmount;
     await user.save();
+
+    const newInv = await Invoice.findByIdAndUpdate(
+      id,
+      {
+        customer,
+        customerName: user.name,
+        items: finalData,
+        subTotal: newSubTotal,
+        discount: newDiscount,
+        totalAmount: newTotalAmount,
+        balanceBefore: oldInv.balanceBefore,
+        balanceAfter: user.balance,
+      },
+      { new: true },
+    );
+
+    await newInv.populate([
+      { path: "customer", select: "name email balance" },
+      { path: "items.product", select: "name category sellingPrice quantity" },
+    ]);
+
+    res.status(200).json({
+      message: "Everything is allright ✔",
+      data: newInv,
+    });
   } catch (error) {
     res.status(500).json({
       message: "Server Error ❌",
