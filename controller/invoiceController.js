@@ -309,6 +309,15 @@ exports.updateInv = async (req, res) => {
         total: product.sellingPrice * item.quantity,
       });
     }
+
+    for(let key in oldItems) {
+      const product = await Product.findById(key);
+      if(!product) continue;
+      product.quantity += oldItems[key];
+      await product.save();
+    }
+
+    
   } catch (error) {
     res.status(500).json({
       message: "Server Error ❌",
