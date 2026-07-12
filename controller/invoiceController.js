@@ -310,14 +310,39 @@ exports.updateInv = async (req, res) => {
       });
     }
 
-    for(let key in oldItems) {
+    // كدا احنا خلصنا اللوب الكبيره بتاعت المنتجات الجديده
+    // حذف المنتجات الباقيه من ال oldItems وارجاع كميتها الي المخزن
+    for (let key in oldItems) {
       const product = await Product.findById(key);
-      if(!product) continue;
+      if (!product) continue;
       product.quantity += oldItems[key];
       await product.save();
     }
 
+    // تعديل رصيد العميل و تعديل اجمالي الفاتوره
+
+    const user = await User.findById(customer);
+    if (!user) {
+      return res.status(404).json({
+        message: `There is no user with the id : ${customer}`,
+      });
+    }
+
+    const oldSubTotal = oldInv.subTotal;
+    const newSubTotal = subTotal;
+    const diffSubTotal = newSubTotal - oldSubTotal;
+
+    const oldDiscount = oldInv.discount;
+    const newDiscount = discount || 0;
+    const diffDiscount = newDiscount - oldDiscount;
+
+    const oldTotalAmount = oldInv.totalAmount;
+    const newTotalAmount = newSubTotal - newDiscount;
+
+    user.balance = user.balance + newTotalAmount - oldTotalAmoult
+
     
+    await user.save();
   } catch (error) {
     res.status(500).json({
       message: "Server Error ❌",
