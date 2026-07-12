@@ -34,7 +34,7 @@ app.get("/api/data", (req, res) => {
   res.json(data);
 });
 mongoose
-  .connect(MONGO_URI)
+  .connect(MONGOATLAS_URI)
   .then(() => {
     console.log("Connected to Atlas MongoDB Successfully ❤");
     app.listen(port, () => {
