@@ -6,10 +6,11 @@ const Product = require("./model/productModel");
 const Counter = require("./model/counterModel");
 
 const MONGODB = process.env.MONGODB_URI;
+const MONGOATLAS_URI = process.env.MONGOATLAS_URI;
 
 const InvSeed = async (count = 5) => {
   try {
-    await mongoose.connect(MONGODB);
+    await mongoose.connect(MONGOATLAS_URI);
     console.log("DB has connected successfully ✔");
 
     await Invoice.deleteMany({});

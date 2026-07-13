@@ -4,10 +4,11 @@ const { faker } = require("@faker-js/faker");
 const productModel = require("./model/productModel");
 
 const MONGODB = process.env.MONGODB_URI;
+const MONGOATLAS_URI = process.env.MONGOATLAS_URI;
 
 const productSeed = async (req, res) => {
   try {
-    await mongoose.connect(MONGODB);
+    await mongoose.connect(MONGOATLAS_URI);
     console.log("DB has connected successfully ✔");
 
     await productModel.deleteMany({});
