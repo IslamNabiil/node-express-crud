@@ -373,3 +373,28 @@ exports.updateInv = async (req, res) => {
     });
   }
 };
+
+exports.createreturnInv = async (req, res) => {
+  try {
+    const { customer, items, discount } = req.body;
+    if (!customer || !items || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({
+        message: "All fields must be filled ❌",
+      });
+    }
+
+    
+
+    const counter = await Counter.findOneAndUpdate(
+      { id: "returnInvoiceId" },
+      { $inc: { seq: 1 } },
+      { returnDocument: "after", upsert: true },
+    );
+
+  } catch (error) {
+    res.status(500).json({
+      message: "Server Error ❌",
+      error: error.message,
+    });
+  }
+};
