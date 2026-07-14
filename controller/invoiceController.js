@@ -406,7 +406,11 @@ exports.createReturnInv = async (req, res) => {
           message: `There is no product with the id : ${item._id}`,
         });
       }
-      
+
+      const lastInv = await Invoice.findOne({
+        customer: customer,
+        "items.product": product._id,
+      }).sort({ createdAt: -1 });
     }
   } catch (error) {
     res.status(500).json({
