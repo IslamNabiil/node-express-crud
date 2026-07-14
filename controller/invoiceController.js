@@ -374,7 +374,7 @@ exports.updateInv = async (req, res) => {
   }
 };
 
-exports.createreturnInv = async (req, res) => {
+exports.createReturnInv = async (req, res) => {
   try {
     const { customer, items, discount } = req.body;
     if (!customer || !items || !Array.isArray(items) || items.length === 0) {
@@ -383,7 +383,12 @@ exports.createreturnInv = async (req, res) => {
       });
     }
 
-    
+    const user = await User.findById(customer);
+    if (!user) {
+      return res.status(404).json({
+        message: `There is no user with the id : ${customer}`,
+      });
+    }
 
     const counter = await Counter.findOneAndUpdate(
       { id: "returnInvoiceId" },
@@ -391,6 +396,18 @@ exports.createreturnInv = async (req, res) => {
       { returnDocument: "after", upsert: true },
     );
 
+    let subTotal = 0;
+    let finalData = [];
+
+    for (let item of items) {
+      const product = await Product.findById(item._id);
+      if (!product) {
+        return res.status(404).json({
+          message: `There is no product with the id : ${item._id}`,
+        });
+      }
+      
+    }
   } catch (error) {
     res.status(500).json({
       message: "Server Error ❌",
