@@ -69,5 +69,5 @@ const returnInvoiceSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
-const returnInvoice = mongoose.model("returnInvoice", returnInvoiceSchema);
-module.exports = returnInvoice;
+const ReturnInvoice = mongoose.model("returnInvoice", returnInvoiceSchema);
+module.exports = ReturnInvoice;

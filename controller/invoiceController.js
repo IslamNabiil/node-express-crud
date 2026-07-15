@@ -2,6 +2,7 @@ const Product = require("../model/productModel");
 const User = require("../model/userModel");
 const Invoice = require("../model/invoiceModel");
 const Counter = require("../model/counterModel");
+const ReturnInvoice = require("../model/returnInvoiceModel");
 
 exports.createInv = async (req, res) => {
   try {
@@ -374,48 +375,93 @@ exports.updateInv = async (req, res) => {
   }
 };
 
-exports.createReturnInv = async (req, res) => {
-  try {
-    const { customer, items, discount } = req.body;
-    if (!customer || !items || !Array.isArray(items) || items.length === 0) {
-      return res.status(400).json({
-        message: "All fields must be filled ❌",
-      });
-    }
-
-    const user = await User.findById(customer);
-    if (!user) {
-      return res.status(404).json({
-        message: `There is no user with the id : ${customer}`,
-      });
-    }
-
-    const counter = await Counter.findOneAndUpdate(
-      { id: "returnInvoiceId" },
-      { $inc: { seq: 1 } },
-      { returnDocument: "after", upsert: true },
-    );
-
-    let subTotal = 0;
-    let finalData = [];
-
-    for (let item of items) {
-      const product = await Product.findById(item._id);
-      if (!product) {
-        return res.status(404).json({
-          message: `There is no product with the id : ${item._id}`,
+  exports.createReturnInv = async (req, res) => {
+    try {
+      const { customer, items, discount } = req.body;
+      if (!customer || !items || !Array.isArray(items) || items.length === 0) {
+        return res.status(400).json({
+          message: "All fields must be filled ❌",
         });
       }
 
-      const lastInv = await Invoice.findOne({
-        customer: customer,
-        "items.product": product._id,
-      }).sort({ createdAt: -1 });
+      const user = await User.findById(customer);
+      if (!user) {
+        return res.status(404).json({
+          message: `There is no user with the id : ${customer}`,
+        });
+      }
+
+      const counter = await Counter.findOneAndUpdate(
+        { id: "returnInvoiceId" },
+        { $inc: { seq: 1 } },
+        { returnDocument: "after", upsert: true },
+      );
+
+      let subTotal = 0;
+      let finalData = [];
+
+      for (let item of items) {
+        const product = await Product.findById(item._id);
+        if (!product) {
+          return res.status(404).json({
+            message: `There is no product with the id : ${item._id}`,
+          });
+        }
+
+        let returnPrice = 0;
+
+        // catching lastInv for the customer
+        const lastInv = await Invoice.findOne({
+          customer: customer,
+          "items.product": product._id,
+        }).sort({ createdAt: -1 });
+
+        //matches returned items using id
+        const matchedItem = lastInv?.items?.find(
+          (i) => i.product.toString() === product._id.toString(),
+        );
+        returnPrice = matchedItem ? matchedItem.price : product.sellingPrice; //collecting the lastSelling Price
+
+        const itemTotal = returnPrice * item.quantity;
+        subTotal += itemTotal;
+
+        product.quantity += item.quantity; //Adding the return quantity to inventory
+        await product.save();
+
+        finalData.push({
+          product: product._id,
+          productName: product.name,
+          quantity: item.quantity,
+          price: returnPrice,
+          total: itemTotal,
+        });
+      }
+      const totalAmount = subTotal - (discount || 0);
+      const balanceBefore = user.balance;
+      const balanceAfter = user.balance - totalAmount;
+      user.balance = balanceAfter;
+      await user.save();
+
+      const newReturnInv = await ReturnInvoice.create({
+        invoiceNumber: counter.seq,
+        customer,
+        customerName: user.name,
+        items: finalData,
+        subTotal,
+        discount,
+        totalAmount,
+        balanceBefore,
+        balanceAfter: user.balance,
+      });
+
+      return res.status(201).json({
+        message: "Everything is allright ✅",
+        data: newReturnInv,
+      });
+    } catch (error) {
+      res.status(500).json({
+        message: "Server Error ❌",
+        error: error.message,
+      });
     }
-  } catch (error) {
-    res.status(500).json({
-      message: "Server Error ❌",
-      error: error.message,
-    });
-  }
-};
+  };
