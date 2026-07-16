@@ -1,4 +1,6 @@
 const User = require("../model/userModel");
+const Invoice = require("../model/invoiceModel");
+const ReturnInvoice = require("../model/returnInvoiceModel");
 
 exports.getAllUsers = async (req, res) => {
   try {
@@ -58,8 +60,17 @@ exports.getAllUsers = async (req, res) => {
 
 exports.createUser = async (req, res) => {
   try {
-    const { name, email, password, color, petName, gender, sexType, sex, balance } =
-      req.body;
+    const {
+      name,
+      email,
+      password,
+      color,
+      petName,
+      gender,
+      sexType,
+      sex,
+      balance,
+    } = req.body;
     const newUser = await User.create({
       name,
       email,
@@ -146,6 +157,59 @@ exports.updateUser = async (req, res) => {
     });
   } catch (error) {
     res.status(400).json({
+      message: "Server Error ❌",
+      error: error.message,
+    });
+  }
+};
+
+exports.getCustomerLedger = async (req, res) => {
+  try {
+    const id = req.params.id;
+    const user = await User.findById(id);
+
+    if (!user) {
+      return res.status(404).json({
+        message: `User with the id : ${id} not found ❌`,
+      });
+    }
+
+    const ledger = [];
+    const invoices = await Invoice.find({ customer: id });
+    const returnInvoice = await ReturnInvoice.find({ customer: id });
+
+    for (let inv of invoices) {
+      const data = {
+        type: "invoice",
+        invoiceNumber: inv.invoiceNumber,
+        date: inv.createdAt,
+        amount: inv.totalAmount,
+        balanceBefore: inv.balanceBefore,
+        balanceAfter: inv.balanceAfter,
+      };
+
+      ledger.push(data);
+    }
+
+    for (let inv of returnInvoice) {
+      const data = {
+        type: "returnInvoice",
+        invoiceNumber: inv.invoiceNumber,
+        data: inv.createdAt,
+        amount: inv.totalAmount,
+        balanceBefore: inv.balanceBefore,
+        balanceAfter: inv.balanceAfter,
+      };
+
+      ledger.push(data);
+    }
+
+    return res.status(200).json({
+      message: "Customer Ledger is ready to deploy ✅",
+      data: ledger,
+    });
+  } catch (error) {
+    res.status(500).json({
       message: "Server Error ❌",
       error: error.message,
     });

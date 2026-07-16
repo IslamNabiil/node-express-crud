@@ -12,4 +12,6 @@ router.get('/:id', userController.getUserById);
 router.delete('/:id', userController.deleteUser);
 router.put('/:id', userController.updateUser);
 
+router.get('/:id/ledger',userController.getCustomerLedger)
+
 module.exports = router;
