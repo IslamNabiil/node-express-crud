@@ -182,7 +182,7 @@ exports.getCustomerLedger = async (req, res) => {
       const data = {
         type: "invoice",
         invoiceNumber: inv.invoiceNumber,
-        date: inv.createdAt,
+        date: inv.createdAt.toLocaleDateString(),
         amount: inv.totalAmount,
         balanceBefore: inv.balanceBefore,
         balanceAfter: inv.balanceAfter,
@@ -195,7 +195,7 @@ exports.getCustomerLedger = async (req, res) => {
       const data = {
         type: "returnInvoice",
         invoiceNumber: inv.invoiceNumber,
-        data: inv.createdAt,
+        date: inv.createdAt.toLocaleDateString(),
         amount: inv.totalAmount,
         balanceBefore: inv.balanceBefore,
         balanceAfter: inv.balanceAfter,
@@ -204,8 +204,30 @@ exports.getCustomerLedger = async (req, res) => {
       ledger.push(data);
     }
 
+    ledger.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+    const totalPurchases = ledger
+      .filter((item) => item.type === "invoice")
+      .reduce((sum, item) => sum + item.amount, 0);
+
+    const totalReturns = ledger
+      .filter((item) => item.type === "returnInvoice")
+      .reduce((sum, item) => sum + item.amount, 0);
+
+    const netSales = totalPurchases - totalReturns;
+
     return res.status(200).json({
-      message: "Customer Ledger is ready to deploy ✅",
+      message: `Customer with the id: ${id} Ledger is ready to deploy ✅`,
+      customerInfo: {
+        name: user.name,
+        email: user.email,
+        balance: user.balance,
+      },
+      summary: {
+        totalPurchases,
+        totalReturns,
+        netSales
+      },
       data: ledger,
     });
   } catch (error) {
