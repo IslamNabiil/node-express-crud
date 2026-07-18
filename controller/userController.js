@@ -177,6 +177,14 @@ exports.getCustomerLedger = async (req, res) => {
     const ledger = [];
     const invoices = await Invoice.find({ customer: id });
     const returnInvoice = await ReturnInvoice.find({ customer: id });
+    
+    let totalSalesGross = 0;
+    let totalSalesDiscount = 0;
+    let totalNetSales = 0;
+    
+    let totalReturnSalesGross = 0;
+    let totalReturnSalesDiscount = 0;
+    let totalNetReturnSales = 0;
 
     for (let inv of invoices) {
       const data = {
@@ -189,6 +197,11 @@ exports.getCustomerLedger = async (req, res) => {
         balanceBefore: inv.balanceBefore,
         balanceAfter: inv.balanceAfter,
       };
+
+
+      totalSalesGross += inv.subTotal || 0;
+      totalSalesDiscount += inv.discount || 0;
+      totalNetSales += inv.totalAmount || 0;
 
       ledger.push(data);
     }
@@ -205,43 +218,20 @@ exports.getCustomerLedger = async (req, res) => {
         balanceAfter: inv.balanceAfter,
       };
 
+
+      totalReturnSalesGross += inv.subTotal || 0;
+      totalReturnSalesDiscount += inv.discount || 0;
+      totalNetReturnSales += inv.totalAmount || 0;
+
       ledger.push(data);
     }
 
     ledger.sort((a, b) => new Date(a.date) - new Date(b.date));
 
-    //sales section
-    const totalSalesBeforeDiscount = ledger
-      .filter((item) => item.type === "invoice")
-      .reduce((sum, item) => sum + item.subTotal, 0);
-
-    const totalSalesDiscount = ledger
-      .filter((item) => item.type === "invoice")
-      .reduce((sum, item) => sum + item.discount, 0);
-
-    const totalSalesAfterDiscount = ledger
-      .filter((item) => item.type === "invoice")
-      .reduce((sum, item) => sum + item.totalAmount, 0);
-
-    //return section
-    const totalReturnSalesBeforeDiscount = ledger
-      .filter((item) => item.type === "returnInvoice")
-      .reduce((sum, item) => sum + item.subTotal, 0);
-
-    const totalReturnSalesDiscount = ledger
-      .filter((item) => item.type === "returnInvoice")
-      .reduce((sum, item) => sum + item.discount, 0);
-
-    const totalReturnSalesAfterDiscount = ledger
-      .filter((item) => item.type === "returnInvoice")
-      .reduce((sum, item) => sum + item.totalAmount, 0);
-
-    const netSalesBeforeDiscount =
-      totalSalesBeforeDiscount - totalReturnSalesBeforeDiscount;
+    const netSalesGross = totalSalesGross - totalReturnSalesGross;
     const netSalesDiscount = totalSalesDiscount - totalReturnSalesDiscount;
-    const netSales = totalSalesAfterDiscount - totalReturnSalesAfterDiscount;
+    const netSales = totalNetSales - totalNetReturnSales;
 
-    //Purchases - totalReturns;
 
     return res.status(200).json({
       message: `Customer with the id: ${id} Ledger is ready to deploy ✅`,
@@ -252,17 +242,17 @@ exports.getCustomerLedger = async (req, res) => {
       },
       summary: {
         Sales: {
-          gross: totalSalesBeforeDiscount,
+          gross: totalSalesGross,
           discount: totalSalesDiscount,
-          net: totalSalesAfterDiscount,
+          net: totalNetSales,
         },
         Returns: {
-          gross: totalReturnSalesBeforeDiscount,
+          gross: totalReturnSalesGross,
           discount: totalReturnSalesDiscount,
-          net: totalReturnSalesAfterDiscount,
+          net: totalNetReturnSales,
         },
         "Net Sales": {
-          gross: netSalesBeforeDiscount,
+          gross: netSalesGross,
           discount: netSalesDiscount,
           net: netSales,
         },
