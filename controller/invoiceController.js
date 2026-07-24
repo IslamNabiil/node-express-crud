@@ -378,92 +378,106 @@ exports.updateInv = async (req, res) => {
   }
 };
 
-exports.createReturnInv = async (req, res) => {
-  try {
-    const { customer, items, discount } = req.body;
-    if (!customer || !items || !Array.isArray(items) || items.length === 0) {
-      return res.status(400).json({
-        message: "All fields must be filled ❌",
-      });
-    }
-
-    const user = await User.findById(customer);
-    if (!user) {
-      return res.status(404).json({
-        message: `There is no user with the id : ${customer}`,
-      });
-    }
-
-    const counter = await Counter.findOneAndUpdate(
-      { id: "returnInvoiceId" },
-      { $inc: { seq: 1 } },
-      { returnDocument: "after", upsert: true },
-    );
-
-    let subTotal = 0;
-    let finalData = [];
-
-    for (let item of items) {
-      const product = await Product.findById(item._id);
-      if (!product) {
-        return res.status(404).json({
-          message: `There is no product with the id : ${item._id}`,
+  exports.createReturnInv = async (req, res) => {
+    try {
+      const { customer, items, discount } = req.body;
+      if (!customer || !items || !Array.isArray(items) || items.length === 0) {
+        return res.status(400).json({
+          message: "All fields must be filled ❌",
         });
       }
 
-      // catching lastInv for the customer
-      const lastInv = await Invoice.findOne({
-        customer: customer,
-        "items.product": product._id,
-      }).sort({ createdAt: -1 });
+      const user = await User.findById(customer);
+      if (!user) {
+        return res.status(404).json({
+          message: `There is no user with the id : ${customer}`,
+        });
+      }
 
-      //matches returned items using id
-      const matchedItem = lastInv?.items?.find(
-        (i) => i.product.toString() === product._id.toString(),
+      const counter = await Counter.findOneAndUpdate(
+        { id: "returnInvoiceId" },
+        { $inc: { seq: 1 } },
+        { returnDocument: "after", upsert: true },
       );
-      
-      let returnPrice = item.price !== undefined ? item.price : (matchedItem ? matchedItem.price : product.sellingPrice)
 
-      const itemTotal = returnPrice * item.quantity;
-      subTotal += itemTotal;
+      let subTotal = 0;
+      let finalData = [];
 
-      product.quantity += item.quantity; //Adding the return quantity to inventory
-      await product.save();
+      const validItems = [];
 
-      finalData.push({
-        product: product._id,
-        productName: product.name,
-        quantity: item.quantity,
-        price: returnPrice,
-        total: itemTotal,
+      for (let item of items) {
+        const product = await Product.findById(item._id);
+        if (!product) {
+          return res.status(404).json({
+            message: `There is no product with the id: ${item._id}`,
+          });
+        }
+
+        const lastInv = await Invoice.findOne({
+          customer: customer,
+          "items.product": product._id,
+        }).sort({ createdAt: -1 });
+
+        const matchedItem = lastInv?.items?.find(
+          (i) => i.product.toString() === product._id.toString(),
+        );
+
+        const returnPrice =
+          item.price !== undefined
+            ? item.price
+            : matchedItem
+              ? matchedItem.price
+              : product.sellingPrice;
+
+        validItems.push({
+          product,
+          quantity: item.quantity,
+          price: returnPrice,
+        });
+      }
+
+      for (let item of validItems) {
+        const { product, quantity, price } = item;
+        const itemTotal = item.price * item.quantity;
+        subTotal += itemTotal;
+        item.product.quantity += item.quantity;
+        await item.product.save();
+
+        finalData.push({
+          product: item.product._id,
+          productName: item.product.name,
+          quantity: item.quantity,
+          price: item.price,
+          total: itemTotal,
+        });
+      }
+
+      const totalAmount = subTotal - (discount || 0);
+      const balanceBefore = user.balance;
+      const balanceAfter = user.balance - totalAmount;
+      user.balance = balanceAfter;
+      await user.save();
+
+      const newReturnInv = await ReturnInvoice.create({
+        invoiceNumber: counter.seq,
+        customer,
+        customerName: user.name,
+        items: finalData,
+        subTotal,
+        discount,
+        totalAmount,
+        balanceBefore,
+        balanceAfter: user.balance,
+      });
+
+      return res.status(201).json({
+        message: "Everything is allright ✅",
+        data: newReturnInv,
+      });
+    } catch (error) {
+      res.status(500).json({
+        message: "Server Error ❌",
+        error: error.message,
       });
     }
-    const totalAmount = subTotal - (discount || 0);
-    const balanceBefore = user.balance;
-    const balanceAfter = user.balance - totalAmount;
-    user.balance = balanceAfter;
-    await user.save();
-
-    const newReturnInv = await ReturnInvoice.create({
-      invoiceNumber: counter.seq,
-      customer,
-      customerName: user.name,
-      items: finalData,
-      subTotal,
-      discount,
-      totalAmount,
-      balanceBefore,
-      balanceAfter: user.balance,
-    });
-
-    return res.status(201).json({
-      message: "Everything is allright ✅",
-      data: newReturnInv,
-    });
-  } catch (error) {
-    res.status(500).json({
-      message: "Server Error ❌",
-      error: error.message,
-    });
-  }
-};
+  };
