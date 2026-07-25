@@ -523,3 +523,29 @@ exports.getReturnInvById = async (req, res) => {
     });
   }
 };
+
+exports.deleteReturnInv = async (req, res) => {
+  try {
+    const returnInvId = req.params.id;
+    const returnInv = await ReturnInvoice.findById(returnInvId);
+    if (!returnInv) {
+      return res.status(404).json({
+        message: `There is no return invoice with the id : ${returnInvId}`,
+      });
+    }
+
+    const user = await User.findById(returnInv.customer);
+    user.balance += returnInv.totalAmount;
+    await user.save();
+
+    for (let item of returnInv.items) {
+      const product = await Product.findById(item._id)
+      
+    }
+  } catch (error) {
+    res.status(500).json({
+      message: "Server Error ❌",
+      error: error.message,
+    });
+  }
+};
