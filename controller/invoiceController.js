@@ -484,12 +484,60 @@ exports.createReturnInv = async (req, res) => {
 
 exports.getAllReturnInv = async (req, res) => {
   try {
-    const returnInvoices = await ReturnInvoice.find().populate([
-      { path: "customer", select: "name email balance" },
-      { path: "items.product", select: "name category sellingPrice quantity" },
-    ]);
+    const queryObj = { ...req.query };
+    const excludedFields = ["sort", "fields", "limit", "page"];
+    excludedFields.forEach((el) => delete queryObj[el]);
+
+    Object.keys(queryObj).forEach((key) => {
+      if (
+        typeof queryObj[key] === "string" &&
+        key !== "customer" &&
+        key !== "invoiceNumber"
+      ) {
+        queryObj[key] = { $regex: queryObj[key], $options: "i" };
+      }
+    });
+
+    let query = ReturnInvoice.find(queryObj);
+
+    if (req.query.sort) {
+      const sortBy = req.query.sort.split(",").join(" ");
+      query = query.sort(sortBy);
+    } else {
+      query = query.sort("-createdAt");
+    }
+
+    if (req.query.fields) {
+      const fields = req.query.fields.split(",").join(" ");
+      query = query.select(fields);
+    } else {
+      query = query.select("-__v");
+    }
+
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+    query = query.skip(skip).limit(limit);
+
+    const numInvoice = await ReturnInvoice.countDocuments();
+    const totalPages = Math.ceil(numInvoice / limit);
+
+    if (req.query.page) {
+      if (skip >= numInvoice) {
+        throw new Error("This page does not exist");
+      }
+    }
+
+    const returnInvoices = await query;
+
     res.status(200).json({
-      message: `We've catched ${returnInvoices.length} return invoices successfully ✔`,
+      message: `We've catched ${returnInvoices.length} returnInvoices successfully ✅`,
+      pagination: {
+        numInvoice,
+        totalPages,
+        currentPage: page,
+        limit,
+      },
       data: returnInvoices,
     });
   } catch (error) {
