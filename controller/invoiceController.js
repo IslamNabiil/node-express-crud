@@ -600,7 +600,7 @@ exports.deleteReturnInv = async (req, res) => {
 
     res.status(200).json({
       message: "Return Invoice has been deleted successfully ✅",
-      data: data,
+      data: returnInv,
     });
   } catch (error) {
     res.status(500).json({
