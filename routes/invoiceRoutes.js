@@ -5,6 +5,7 @@ const invoiceController = require("../controller/invoiceController");
 
 // 1️⃣ المسارات الثابتة أولاً (Static Routes)
 router.get("/return", invoiceController.getAllReturnInv);
+router.get("/return/:id", invoiceController.getReturnInvById);
 router.post("/return", invoiceController.createReturnInv);
 
 // 2️⃣ المسارات العامة بدون Parameters

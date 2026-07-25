@@ -499,3 +499,27 @@ exports.getAllReturnInv = async (req, res) => {
     });
   }
 };
+
+exports.getReturnInvById = async (req, res) => {
+  try {
+    const returnInvId = req.params.id;
+    const returnInv = await ReturnInvoice.findById(returnInvId).populate([
+      { path: "customer", select: "name email balance" },
+      { path: "items.product", select: "name category sellingPrice quantity" },
+    ]);
+    if (!returnInv) {
+      return res.status(404).json({
+        message: `There is no return invoice with the id : ${returnInvId}`,
+      });
+    }
+    res.status(200).json({
+      message: `We've catched the return inv num ${returnInv.invoiceNumber} successfully ✔`,
+      data: returnInv,
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: "Server Error ❌",
+      error: error.message,
+    });
+  }
+};
