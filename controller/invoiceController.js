@@ -535,13 +535,25 @@ exports.deleteReturnInv = async (req, res) => {
     }
 
     const user = await User.findById(returnInv.customer);
-    user.balance += returnInv.totalAmount;
-    await user.save();
+    if (user) {
+      user.balance += returnInv.totalAmount;
+      await user.save();
+    }
 
     for (let item of returnInv.items) {
-      const product = await Product.findById(item._id)
-      
+      const product = await Product.findById(item.product);
+      if (product) {
+        product.quantity -= item.quantity;
+        await product.save();
+      }
     }
+
+    await ReturnInvoice.findByIdAndDelete(returnInvId);
+
+    res.status(200).json({
+      message: "Return Invoice has been deleted successfully ✅",
+      data: data,
+    });
   } catch (error) {
     res.status(500).json({
       message: "Server Error ❌",
