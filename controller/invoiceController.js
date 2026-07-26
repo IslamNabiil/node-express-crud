@@ -43,6 +43,13 @@ exports.createInv = async (req, res) => {
       }
     }
 
+    const user = await User.findById(customer);
+    if (!user) {
+      return res.status(400).json({
+        message: `There is no user with the id : ${customer}`,
+      });
+    }
+
     for (let item of items) {
       const product = await Product.findById(item._id);
 
@@ -63,13 +70,6 @@ exports.createInv = async (req, res) => {
     }
 
     const total = subTotal - (discount || 0);
-
-    const user = await User.findById(customer);
-    if (!user) {
-      return res.status(400).json({
-        message: `There is no user with the id : ${customer}`,
-      });
-    }
 
     const counter = await Counter.findOneAndUpdate(
       { id: "invoiceId" }, // 1. دور على العداد بتاع الفواتير
@@ -602,6 +602,17 @@ exports.deleteReturnInv = async (req, res) => {
       message: "Return Invoice has been deleted successfully ✅",
       data: returnInv,
     });
+  } catch (error) {
+    res.status(500).json({
+      message: "Server Error ❌",
+      error: error.message,
+    });
+  }
+};
+
+exports.updateReturnInv = async (req, res) => {
+  try {
+    
   } catch (error) {
     res.status(500).json({
       message: "Server Error ❌",
