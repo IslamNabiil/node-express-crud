@@ -612,7 +612,13 @@ exports.deleteReturnInv = async (req, res) => {
 
 exports.updateReturnInv = async (req, res) => {
   try {
-    
+    const id = req.params.id;
+    const oldReturnInv = await ReturnInvoice.findById(id);
+
+    res.status(200).json({
+      message: "Test Route ✅",
+      InvoiceUser: oldReturnInv.customerName,
+    });
   } catch (error) {
     res.status(500).json({
       message: "Server Error ❌",

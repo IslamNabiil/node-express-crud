@@ -8,6 +8,7 @@ router.get("/return", invoiceController.getAllReturnInv);
 router.post("/return", invoiceController.createReturnInv);
 router.get("/return/:id", invoiceController.getReturnInvById);
 router.delete("/return/:id", invoiceController.deleteReturnInv);
+router.patch("/return/:id", invoiceController.updateReturnInv);
 
 // 2️⃣ المسارات العامة بدون Parameters
 router.get("/", invoiceController.getAllInv);
