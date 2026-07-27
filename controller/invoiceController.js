@@ -614,10 +614,17 @@ exports.updateReturnInv = async (req, res) => {
   try {
     const id = req.params.id;
     const oldReturnInv = await ReturnInvoice.findById(id);
+    if (!oldReturnInv) {
+      return res.status(404).json({
+        message: `There is no return invoice with the id : ${id}`,
+      });
+    }
+    const user = await User.findById(oldReturnInv.customer);
 
     res.status(200).json({
       message: "Test Route ✅",
       InvoiceUser: oldReturnInv.customerName,
+      User: user.name,
     });
   } catch (error) {
     res.status(500).json({
