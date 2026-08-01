@@ -551,10 +551,11 @@ exports.getAllReturnInv = async (req, res) => {
 exports.getReturnInvById = async (req, res) => {
   try {
     const returnInvId = req.params.id;
-    const returnInv = await ReturnInvoice.findById(returnInvId).populate([
-      { path: "customer", select: "name email balance" },
-      { path: "items.product", select: "name category sellingPrice quantity" },
-    ]);
+    const returnInv = await ReturnInvoice.findById(returnInvId);
+    // .populate([
+    //   { path: "customer", select: "name email balance" },
+    //   { path: "items.product", select: "name category sellingPrice quantity" },
+    // ]);
     if (!returnInv) {
       return res.status(404).json({
         message: `There is no return invoice with the id : ${returnInvId}`,
@@ -627,25 +628,72 @@ exports.updateReturnInv = async (req, res) => {
       });
     }
 
+    const oldItems = {};
 
-    
+    for (let item of oldReturnInv.items) {
+      oldItems[item.product.toString()] = {
+        quantity: item.quantity,
+        price: item.price,
+      };
+    }
+
+    let subTotal = 0;
+    let finalData = [];
+
+    const newItems = [];
+    for (let item of items) {
+      const product = await Product.findById(item.product);
+      if (!product) {
+        return res.status(404).json({
+          message: `There is no item with the id : ${item.product}`,
+        });
+      }
+      const lastInv = await Invoice.findOne({
+        customer,
+        "items.product": product._id,
+      }).sort({ createdAt: -1 });
+
+      const matchedItem = lastInv?.items?.find(
+        (i) => i.product.toString() === product._id.toString(),
+      );
+
+      // const returnPrice =
+      //   item.price !== undefined
+      //     ? item.price
+      //     : matchedItem
+      //       ? matchedItem.price
+      //       : product.sellingPrice;
+
+      const returnPrice =
+        item.price ?? // السعر اللي مكتوب في خانه السعر
+        oldItems?.price ?? // لو مش موجود خد السعر اللي كان في الفاتوره قبل التعديل
+        matchedItem?.price ?? // لو مفيش يبقي خد سعر اخر فاتوره بيع
+        product.sellingPrice; // لو كل دا مش لاقي يبقي خد السعر الاصلي
+
+      newItems.push({
+        product,
+        quantity: item.quantity,
+        price: returnPrice,
+      });
+    }
+
     // بالنسبه للعميل عايزين نتاكد هل هو نفس الشخص القديم ولا لا
     // بس للاسف التعديلات اللي هتتم علي العملا دا هيكون اخر حاجه في التعديلات
     const oldUser = await User.findById(oldReturnInv.customer);
     const newUser = await User.findById(customer);
 
-    if (oldUser.id !== newUser.id) {
-      oldUser.balance += oldReturnInv.totalAmount;
-      await oldUser.save();
-      newUser.balance -= oldReturnInv.totalAmount;
-      await newUser.save();
-    }
+    // if (oldUser.id !== newUser.id) {
+    //   oldUser.balance += oldReturnInv.totalAmount;
+    //   await oldUser.save();
+    //   newUser.balance -= oldReturnInv.totalAmount;
+    //   await newUser.save();
+    // }
 
     res.status(200).json({
       message: "Test Route ✅",
       data: {
-        oldUser: oldUser.id,
-        newUser: newUser.id,
+        oldItems,
+        newItems,
       },
     });
   } catch (error) {
