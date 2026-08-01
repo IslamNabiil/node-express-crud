@@ -619,12 +619,34 @@ exports.updateReturnInv = async (req, res) => {
         message: `There is no return invoice with the id : ${id}`,
       });
     }
-    const user = await User.findById(oldReturnInv.customer);
+
+    const { customer, items, discount } = req.body;
+    if (!customer || !items || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({
+        message: "All fields must be filled ❌",
+      });
+    }
+
+
+    
+    // بالنسبه للعميل عايزين نتاكد هل هو نفس الشخص القديم ولا لا
+    // بس للاسف التعديلات اللي هتتم علي العملا دا هيكون اخر حاجه في التعديلات
+    const oldUser = await User.findById(oldReturnInv.customer);
+    const newUser = await User.findById(customer);
+
+    if (oldUser.id !== newUser.id) {
+      oldUser.balance += oldReturnInv.totalAmount;
+      await oldUser.save();
+      newUser.balance -= oldReturnInv.totalAmount;
+      await newUser.save();
+    }
 
     res.status(200).json({
       message: "Test Route ✅",
-      InvoiceUser: oldReturnInv.customerName,
-      User: user.name,
+      data: {
+        oldUser: oldUser.id,
+        newUser: newUser.id,
+      },
     });
   } catch (error) {
     res.status(500).json({
