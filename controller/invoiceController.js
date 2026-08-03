@@ -629,7 +629,6 @@ exports.updateReturnInv = async (req, res) => {
     }
 
     const oldItems = {};
-
     for (let item of oldReturnInv.items) {
       oldItems[item.product.toString()] = {
         quantity: item.quantity,
@@ -638,9 +637,8 @@ exports.updateReturnInv = async (req, res) => {
     }
 
     let subTotal = 0;
-    let finalData = [];
+    const finalItems = [];
 
-    const newItems = [];
     for (let item of items) {
       const product = await Product.findById(item.product);
       if (!product) {
@@ -648,53 +646,102 @@ exports.updateReturnInv = async (req, res) => {
           message: `There is no item with the id : ${item.product}`,
         });
       }
+
+      // 1. معرفة بيانات الصنف القديم قبل ما نمسحه
+      const productIdStr = product._id.toString();
+      const oldItem = oldItems[productIdStr];
+      const oldQty = oldItem?.quantity || 0;
+
+      // 2. البحث عن آخر سعر بيع
       const lastInv = await Invoice.findOne({
         customer,
         "items.product": product._id,
       }).sort({ createdAt: -1 });
 
       const matchedItem = lastInv?.items?.find(
-        (i) => i.product.toString() === product._id.toString(),
+        (i) => i.product.toString() === productIdStr,
       );
 
-      // const returnPrice =
-      //   item.price !== undefined
-      //     ? item.price
-      //     : matchedItem
-      //       ? matchedItem.price
-      //       : product.sellingPrice;
-
+      // 3. التسعير الصح
       const returnPrice =
-        item.price ?? // السعر اللي مكتوب في خانه السعر
-        oldItems?.price ?? // لو مش موجود خد السعر اللي كان في الفاتوره قبل التعديل
-        matchedItem?.price ?? // لو مفيش يبقي خد سعر اخر فاتوره بيع
-        product.sellingPrice; // لو كل دا مش لاقي يبقي خد السعر الاصلي
+        item.price ??
+        oldItem?.price ??
+        matchedItem?.price ??
+        product.sellingPrice;
 
-      newItems.push({
-        product,
-        quantity: item.quantity,
+      // 4. فرق الكميات للمخزن (الجديد - القديم)
+      const newQty = item.quantity;
+      const diffQty = newQty - oldQty;
+
+      // المرتجع بيزود المخزن بفرق الكمية
+      product.quantity += diffQty;
+      await product.save();
+
+      // 5. حساب الإجمالي للصنف وللفاتورة
+      const itemTotal = returnPrice * newQty;
+      subTotal += itemTotal;
+
+      finalItems.push({
+        product: product._id,
+        productName: product.name,
+        quantity: newQty,
         price: returnPrice,
+        total: itemTotal,
       });
+
+      // 6. مسحه من oldItems بعد ما أخدنا بياناته وعدلنا مخزنه
+      delete oldItems[productIdStr];
     }
 
-    // بالنسبه للعميل عايزين نتاكد هل هو نفس الشخص القديم ولا لا
-    // بس للاسف التعديلات اللي هتتم علي العملا دا هيكون اخر حاجه في التعديلات
+    // 7. الأصناف اللي اتمسحت خالص من المرتجع نرجع نخصمها من المخزن
+    for (let productId in oldItems) {
+      const product = await Product.findById(productId);
+      if (product) {
+        product.quantity -= oldItems[productId].quantity;
+        await product.save();
+      }
+    }
+
+    // 8. الحسابات المالية النهائية
+    const newDiscount = discount || 0;
+    const newTotalAmount = subTotal - newDiscount;
+
+    // 9. تسوية العملاء (Rollback للقديم وتطبيق للجديد)
     const oldUser = await User.findById(oldReturnInv.customer);
     const newUser = await User.findById(customer);
 
-    // if (oldUser.id !== newUser.id) {
-    //   oldUser.balance += oldReturnInv.totalAmount;
-    //   await oldUser.save();
-    //   newUser.balance -= oldReturnInv.totalAmount;
-    //   await newUser.save();
-    // }
+    if (!newUser) {
+      return res.status(404).json({
+        message: `There is no user with the id : ${customer}`,
+      });
+    }
 
-    res.status(200).json({
-      message: "Test Route ✅",
-      data: {
-        oldItems,
-        newItems,
+    if (oldUser) {
+      oldUser.balance += oldReturnInv.totalAmount;
+      await oldUser.save();
+    }
+
+    newUser.balance -= newTotalAmount;
+    await newUser.save();
+
+    // 10. التحديث في الداتابيز
+    const updatedReturnInvoice = await ReturnInvoice.findByIdAndUpdate(
+      id,
+      {
+        customer,
+        customerName: newUser.name,
+        items: finalItems,
+        subTotal,
+        discount: newDiscount,
+        totalAmount: newTotalAmount,
       },
+      { new: true },
+    );
+
+    // 11. الـ Response
+    res.status(200).json({
+      message: "Return invoice updated successfully ✅",
+      data: updatedReturnInvoice,
     });
   } catch (error) {
     res.status(500).json({
