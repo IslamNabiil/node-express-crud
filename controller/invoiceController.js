@@ -628,11 +628,34 @@ exports.updateReturnInv = async (req, res) => {
       });
     }
 
-    
+    const oldItems = {};
+    for (let item of returnInv.items) {
+      oldItems[item.product.toString()] = {
+        quantity: item.quantity,
+        price: item.price,
+      };
+    }
+
+    const newItems = [];
+    for (let item of items) {
+      const product = await Product.findById(item.product);
+      if (!product) {
+        return res.status(404).json({
+          message: `There is no item with the id: ${item.product}`,
+        });
+      }
+
+      const lastInv = await Invoice.findOne({
+        customer,
+        "items.product": product._id,
+      }).sort({ createdAt: -1 });
+
+      
+    }
 
     res.status(200).json({
       message: "ReturnInv is here",
-      data: oldItems,
+      data: { oldItems: oldItems, newItems: newItems },
     });
   } catch (error) {
     res.status(500).json({
