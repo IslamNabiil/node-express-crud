@@ -613,7 +613,20 @@ exports.deleteReturnInv = async (req, res) => {
 
 exports.updateReturnInv = async (req, res) => {
   try {
-    
+  const id = req.params.id;
+  const returnInv = await ReturnInvoice.findById(id);
+  if(!returnInv){
+    return res.status(404).json({
+      message: `There is no ReturnInv with the id :${id}`
+    })
+  }
+  const {items, discount, customer} = req.body;
+  if (!items || !Array.isArray(items) || items.length === 0 || !customer){
+    return res.status(400).json({
+      message: `All fields must be filled out!`
+    })
+  }
+
   } catch (error) {
     res.status(500).json({
       message: "Server Error ❌",
